@@ -1,0 +1,8 @@
+current: qa
+production:
+  server: https://sws.aws.fao.org:8181 
+  token: bb4bda9c-d4bb-421f-80a4-16488aff4b5b # 9 oct 2023, all countries
+  
+qa: 
+  server: https://sws.qa.aws.fao.org:8181
+  token: ac03a6c7-a504-48c4-8417-5e308d2b0a69
