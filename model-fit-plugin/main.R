@@ -57,7 +57,20 @@ load(file.path(R_SWS_SHARE_PATH,'Bayesian_food_loss/Inputs/FAOCrops2.RData'))
 load(file.path(R_SWS_SHARE_PATH,'Bayesian_food_loss/Inputs/CropCalendar2.RData'))
 
 
-years_out = 1991:2024
+start_year = as.numeric(ifelse(
+    is.null(swsContext.computationParams$start_year),
+    "1991",
+    swsContext.computationParams$start_year
+))
+
+end_year = as.numeric(ifelse(
+    is.null(swsContext.computationParams$end_year),
+    "2024",
+    swsContext.computationParams$end_year
+))
+
+years_out = start_year:end_year
+#vector of years for which the plugin retrieves inputs and produces outputs.
 
 
 # Read in some required inputs.
