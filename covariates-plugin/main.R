@@ -316,8 +316,19 @@ M49 = M49[!is.na(iso3) & iso3!=""]
 M49[, region_l1 := sdg_subregion_l1]
 M49[, region_l2 := sdg_subregion_l2]
 
-years_out = 1991:2024  #This will be derived from the plugin parameters
+start_year = as.numeric(ifelse(
+    is.null(swsContext.computationParams$start_year),
+    "1991",
+    swsContext.computationParams$start_year
+))
 
+end_year = as.numeric(ifelse(
+    is.null(swsContext.computationParams$end_year),
+    "2024",
+    swsContext.computationParams$end_year
+))
+
+years_out = start_year:end_year
 
 
 
