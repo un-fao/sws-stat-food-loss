@@ -74,7 +74,7 @@ name_map = areaList[, .(
 )]
 setkey(name_map, code)
 
-#here I extract jsut code and type_l so we can see what kind of node represents a certain code
+#here I extract just code and type_l so we can see what kind of node represents a certain code
 type_lookup = name_map[, .(code, type_l)]
 setkey(type_lookup, code)
 #type_l values are "country", "region", "intermediate region", "subregion".
@@ -118,7 +118,7 @@ dt = dt[m49_country_code %chin% parent_sdg$child]
 dt[, sdg_region_code := parent_sdg[m49_country_code, parent]]
 
 #Keep climbing up the SDG tree until your code is one of the 7 SDG region codes under 1.04
-# I use 8 as a safe upper bound
+# I use 8 as a safe upper bound ( I think 4 will be sufficient)
 for (i in 1:8) {
     dt[!is.na(sdg_region_code) & !(sdg_region_code %chin% sdg_region_codes), #sdg_region_code is NOT one of the 7 SDG region codes,keep climbing, replacing it with its parent
        sdg_region_code := parent_sdg[sdg_region_code, parent]]
@@ -131,7 +131,7 @@ dt[!(sdg_region_code %chin% sdg_region_codes), sdg_region_code := NA_character_]
 dt[, sdg_region_name := name_map[sdg_region_code, name]]
 
 # sanity check
-dt[!is.na(sdg_region_code) & is.na(sdg_region_name), .N]
+dt[!is.na(sdg_region_code) & is.na(sdg_region_name), .N]#normally should be 0
 
 # 
 #  Get M49 subregion + region for each country 
@@ -141,7 +141,7 @@ dt[, m49_parent1 := parent_m49[m49_country_code, parent]]
 
 #  build m49_subregion_code (climb until type == "sub-region")
 dt[, cur := m49_parent1]
-for (i in 1:12) {
+for (i in 1:8) {
     dt[!is.na(cur) & type_lookup[cur, type_l] != "sub-region",
        cur := parent_m49[cur, parent]]
 }
@@ -165,7 +165,7 @@ dt[, cur := NULL]
 
 # climb from subregion to first ancestor that is a "region"
 dt[, cur := m49_subregion_code]
-for (i in 1:12) {
+for (i in 1:8) {
     dt[!is.na(cur) & type_lookup[cur, type_l] != "region",
        cur := parent_m49[cur, parent]]
 }
@@ -254,8 +254,8 @@ dt[sdg_subregion_l1_code == "747" & !(sdg_subregion_l2_code %chin% c("15","145")
 dt = merge(dt, name_map[, .(code, sdg_subregion_l1 = name)],
            by.x="sdg_subregion_l1_code", by.y="code", all.x=TRUE)
 
-dt <- merge(dt, name_map[, .(code, sdg_subregion_l2 = name)],
-            by.x="sdg_subregion_l2_code", by.y="code", all.x=TRUE)
+dt = merge(dt, name_map[, .(code, sdg_subregion_l2 = name)],
+           by.x="sdg_subregion_l2_code", by.y="code", all.x=TRUE)
 
 # 
 #  Final output
@@ -270,20 +270,18 @@ final = dt[, .(
 final[]
 
 #Adding iso3 using the mapping datatable
-# m49_fs_iso_mapping = as.data.table(ReadDatatable("m49_fs_iso_mapping", readOnly = FALSE))
-# # keep only rows that actually have an m49+iso3
-# map_iso3 = m49_fs_iso_mapping[
-#   !is.na(m49) & m49 != "" & !is.na(iso3) & iso3 != "",
-#   .(m49_country_code = as.character(m49), iso3)
-# ]
-# 
-# #keep unique (m49,iso3) pairs
-# map_iso3 = unique(map_iso3, by = c("m49_country_code", "iso3"))
-# 
-# final_with_iso3 = merge(final, map_iso3, by = "m49_country_code", all.x = TRUE)
+#m49_fs_iso_mapping = as.data.table(ReadDatatable("m49_fs_iso_mapping", readOnly = FALSE))
+# keep only rows that actually have an m49+iso3
+#map_iso3 = m49_fs_iso_mapping[
+#  !is.na(m49) & m49 != "" & !is.na(iso3) & iso3 != "",
+#  .(m49_country_code = as.character(m49), iso3)
+#]
+
+#keep unique (m49,iso3) pairs
+#map_iso3 = unique(map_iso3, by = c("m49_country_code", "iso3"))
 
 
-#Mapping M49 to iso3
+#Mapping M49 to iso3 using countrycode since the m49_fs_iso_mapping datatable is not updated.
 final_with_iso3 = copy(final)
 final_with_iso3[, iso3c := countrycode(as.integer(m49_country_code), "un", "iso3c")]
 #problem_codes = c(58, 158, 200, 230, 412, 530, 582, 680, 736, 810, 836, 890, 891)
@@ -293,13 +291,15 @@ final_with_iso3[, iso3c := countrycode(as.integer(m49_country_code), "un", "iso3
 #  name = countrycode(problem_codes, "un", "country.name")
 #)
 
+#Here I associate the iso codes from the file of the original country groupings since
+#countrycode package did not have one for those M49 codes
 final_with_iso3[m49_country_code=="158", iso3c := "TWN"]
 final_with_iso3[m49_country_code=="412", iso3c := ""]
 final_with_iso3[m49_country_code=="680", iso3c := "XSQ"]
 final_with_iso3[m49_country_code=="836", iso3c := ""]
-
+#I could not find iso3 for those countries in the original country groupings file and neither did the package:
 countries_to_remove = c("58","200","230","530","582","736","810","890","891")
-###Remove the other countries not present in the original countries groupings
+###Remove the other countries not present in the original countries groupings 
 final_with_iso3[, m49_country_code := as.character(m49_country_code)]
 
 final_with_iso3 = final_with_iso3[!(m49_country_code %in% countries_to_remove)]
