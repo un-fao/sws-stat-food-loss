@@ -1,30 +1,25 @@
-# json_path = "Covariates_2026/cckp_cru_ts4.09_tas_pr_1901_2024.json"
-# # 1) The API URL 
-# url = "https://cckpapi.worldbank.org/api/v1/cru-x0.5_timeseries_tas,pr_timeseries_monthly_1901-2024_mean_historical_cru_ts4.09_mean/global_countries?_format=json"
-# 
-# #pkgs = c("curl", "jsonlite")
-# library("curl")
-# library("jsonlite")
-# dir.create(dirname(json_path), recursive = TRUE, showWarnings = FALSE)
-# curl_download(url, destfile = json_path, mode = "wb")
-# 
-# # Read 
-# x = fromJSON(json_path, simplifyVector = FALSE)
-# 
-# #Quick sanity check: show top-level names
-# cat("Top-level fields in JSON:\n")
-# print(names(x))
-# 
-# #Create two separate datatables (for temperature and precipitations)
-# 
-# #Extract lists by variable
-# tas_all = x$data$tas
-# pr_all = x$data$pr
-# 
-# #Identify geocodes available in both
-# geos = intersect (names(x$data$tas), names(x$data$pr))
-# 
-# 
+#########################################################
+#
+# Description:
+# This plugin prepares the external covariates and support
+# objects required by the Bayesian food loss workflow.
+# It builds the country grouping table (M49), downloads and
+# processes climate data (temperature and rainfall), prepares
+# GDP per capita and Logistics Performance Index (LPI)
+# covariates, smooths selected series, and saves the final
+# outputs into SWS datatables for downstream use.
+#
+# Main outputs:
+# - M49 country grouping table
+# - temperature_bayesian
+# - rainfall_bayesian
+# - gdp_bayesian
+# - lpi_bayesian
+#
+# Parameters:
+# - start_year: first year to include (default 1991)
+# - end_year: last year to include (default 2024)
+#########################################################
 
 
 #########################################################
@@ -431,10 +426,15 @@ dt_tas_long[1:20]
 #If we need to place Years and months in two separate columns
 dt_tas_long_2 = copy(dt_tas_long)
 dt_tas_long_2[, time_period := as.character(time_period)]
-dt_tas_long_2[, c("year", "month") := tstrsplit(time_period, "-", fixed=TRUE)]
+dt_tas_long_2[, c("year", "month") := tstrsplit(time_period, "-", fixed = TRUE)]
 dt_tas_long_2[, `:=`(year = as.integer(year), month = as.integer(month))]
 dt_tas_long_2[, time_period := NULL]
+
+# keep only requested years
+dt_tas_long_2 = dt_tas_long_2[year %in% years_out]
+
 setcolorder(dt_tas_long_2, c("isocode", "year", "month", "temperature_c"))
+
 
 DT_temperature_2 = as.data.table(ReadDatatable("temperature_bayesian", readOnly = FALSE))
 if (is.null(DT_temperature_2)) stop("Datatable 'temperature_bayesian' not found.")
@@ -514,7 +514,12 @@ dt_pr_long_2[, time_period := as.character(time_period)]
 dt_pr_long_2[, c("year", "month") := tstrsplit(time_period, "-", fixed = TRUE)]
 dt_pr_long_2[, `:=`(year = as.integer(year), month = as.integer(month))]
 dt_pr_long_2[, time_period := NULL]
+
+# keep only requested years
+dt_pr_long_2 = dt_pr_long_2[year %in% years_out]
+
 setcolorder(dt_pr_long_2, c("isocode", "year", "month", "rainfall_mm"))
+
 
 DT_precipitations_2 = as.data.table(ReadDatatable("rainfall_bayesian", readOnly = FALSE))
 if (is.null(DT_precipitations_2)) stop("Datatable 'rainfall_bayesian' not found.")
