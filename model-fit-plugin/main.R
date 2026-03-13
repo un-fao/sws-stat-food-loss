@@ -1,3 +1,29 @@
+#########################################################
+#
+# Description:
+# This plugin constructs the model training dataset for the
+# Bayesian food loss workflow and fits the hierarchical
+# Bayesian model in NIMBLE. It reads the prepared covariates
+# from SWS, rebuilds the country grouping structure, filters
+# the valid production support, joins harvest calendar,
+# weather, GDP, and LPI covariates to the observed loss data,
+# applies the required preprocessing steps, and estimates the
+# posterior model parameters. It also saves the fitted samples
+# and auxiliary objects needed for the prediction phase.
+#
+# Main outputs:
+# - model_data.qs2
+# - prediction_inputs.qs2
+# - prediction_meta.qs2
+# - fit_combined_samples.qs2
+# - fit_samples_list_coda.qs2
+# - levels_fit.qs2
+# - scale_fit.qs2
+#
+# Parameters:
+# - start_year: first year to include (default 1991)
+# - end_year: last year to include (default 2024)
+#########################################################
 library(mgcv)
 #install.packages("nimble")
 library(nimble)
