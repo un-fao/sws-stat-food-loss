@@ -1,10 +1,27 @@
-#options(repos = c(
-#CRAN      = "https://rstudiopm.qa.aws.fao.org/fao-sws-cran/__linux__/centos7/latest",
-#  CRAN_OLD  = "https://rstudiopm.qa.aws.fao.org/fao-sws-cran/2025-09-29+5HHVJ1y8"
-#))
-#source("renv/activate.R")
-#renv::restore(prompt = FALSE)
-
+#########################################################
+#
+# Description:
+# This plugin generates posterior food loss predictions using
+# the saved outputs of the fitted Bayesian model. It loads the
+# posterior samples, prediction inputs, factor levels, and
+# scaling constants, reconstructs the required parameter
+# arrays, and produces posterior predictions for valid
+# country-product-year combinations only. It then computes
+# posterior quantiles, reshapes the results into the required
+# SWS output structure, and saves the final estimates into the
+# target SUA- and Survey-level datasets.
+#
+# Main outputs:
+# - full_prediction_quantiles_df_2026.RData
+# - full_prediction_quantiles_SUA_df_2026.RData
+# - full_prediction_quantiles_survey_df_2026.RData
+# - food_loss_estimates_sua
+# - food_loss_estimates_survey
+#
+# Notes:
+# - invalid country-product-year combinations are left as NA
+#   during prediction and removed before saving to SWS
+#########################################################
 cat("R version:", as.character(base::getRversion()), "\n")
 
 
