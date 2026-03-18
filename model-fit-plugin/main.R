@@ -19,6 +19,7 @@
 # - fit_samples_list_coda.qs2
 # - levels_fit.qs2
 # - scale_fit.qs2
+# - convergence_report.html
 #
 # Parameters:
 # - start_year: first year to include (default 1991)
@@ -63,7 +64,7 @@ library(future.apply)
 library(faosws)
 library(faoswsUtil)
 
-library(countrycode) #####Still needs to be added to renv.lock
+library(countrycode)
 
 
 if (faosws::CheckDebug()) {
@@ -642,7 +643,7 @@ model_data <- Data_Use_train0%>%select(geographicaream49,timepointyears,measured
 model_data$tag_datacollection[model_data$tag_datacollection=="SWS_2"] <- "SUA"
 
 # Relabel China's M49 code.
-model_data$m49_numeric[model_data$m49_numeric==1248] <- 156
+#model_data$m49_numeric[model_data$m49_numeric==1248] <- 156
 
 #Filter the data 
 setDT(model_data)
@@ -1452,7 +1453,7 @@ inits_list_fit <- lapply(1:n_chains_fit,function(x)loss_init_fun(init_seeds_fit[
 
 RNGkind("L'Ecuyer-CMRG")
 set.seed(34095831)
-# Set up the parallel computing cluster (use n_workers, not n_chains_fit)
+# Set up the parallel computing cluster 
 par_cluster <- makeCluster(n_workers)
 parallel::clusterSetRNGStream(par_cluster, iseed = 34095831)
 
@@ -1472,7 +1473,6 @@ clusterEvalQ(par_cluster, { library(nimble); NULL })
 clusterExport(par_cluster, c("dhalf_cauchy", "rhalf_cauchy"))
 
 # Run the full model for 200k iterations.
-# Expected time 12 hours.
 system.time({
     fit_samples_list<- parLapply(cl = par_cluster, X = 1:n_chains_fit, 
                                  fun = loss_model_run_function,
@@ -1506,7 +1506,7 @@ n_sim_fit <- nrow(fit_combined_samples)
 save_dir <- file.path(R_SWS_SHARE_PATH, "Bayesian_food_loss", "Saved_models", "mcmc_outputs_2026")
 dir.create(save_dir, recursive = TRUE, showWarnings = FALSE)
 
-# 1) Save ALL posterior draws (parameters) as a matrix (fast for prediction)
+# Save ALL posterior draws (parameters) as a matrix (fast for prediction)
 qs2::qs_save(
     fit_combined_samples,
     file = file.path(save_dir, "fit_combined_samples.qs2")
@@ -1515,7 +1515,7 @@ qs2::qs_save(
 #class(fit_combined_samples)
 #str(fit_combined_samples, max.level = 2)
 #dim(fit_combined_samples)
-# 2) (Optional) Save the chain-wise coda objects too (for diagnostics later)
+# (Optional) Save the chain-wise coda objects too (for diagnostics later)
 qs2::qs_save(
     fit_samples_list,
     file = file.path(save_dir, "fit_samples_list_coda.qs2")
@@ -1524,7 +1524,7 @@ qs2::qs_save(
 #class(fit_samples_list_coda)
 #str(fit_samples_list_coda, max.level = 2)
 #dim(fit_samples_list_coda)
-# 3) Save factor level mappings used in the fit (CRITICAL if you rebuild model_data later)
+# Save factor level mappings used in the fit (CRITICAL if to rebuild model_data later)
 levels_fit <- list(
     country_m49 = levels(model_data$country_m49), #M49 used by the model
     iso3 = levels(model_data$iso3), #it is optional to keep it
@@ -1540,7 +1540,7 @@ levels_fit <- list(
 )
 qs2::qs_save(levels_fit, file.path(save_dir, "levels_fit.qs2"))
 
-# 4) Save scaling constants used for covariates in the fit/prediction code
+# Save scaling constants used for covariates in the fit/prediction code
 # (the prediction code scales using means/sds of model_data)
 scale_fit <- list(
     year_mean = mean(model_data$year), year_sd = sd(model_data$year),
@@ -1555,396 +1555,465 @@ qs2::qs_save(scale_fit, file.path(save_dir, "scale_fit.qs2"))
 
 #############
 #############
-# ONCE WE SAVE ALL THE INPUTS FOR THE PREDICTIONS PLUGIN,
-# THE REST OF THE CODE FOR ASSESSING THE MCMC CONVERGENCE AND SUMMARY PLOTS
-# IS RECOMMENDED TO BE EXECUTED LOCALLY, OUTSIDE OF SWS
-############
-############
+###########################################
+# Reporting
+###########################################
+library(htmltools)
+library(sendmailR)
+library(base64enc)
+save_dir = file.path(R_SWS_SHARE_PATH, "Bayesian_food_loss", "Saved_models", "mcmc_outputs_2026")
+fit_samples_list = qs2::qs_read(file.path(save_dir, "fit_samples_list_coda.qs2"))
 
 
-# 
-# # Check convergence of the chains.
-# uni_psrf <- lapply(colnames(fit_samples_list$samples[[1]]),
-#                    function(x)gelman.diag(fit_samples_list$samples[,x],
-#                                           multivariate = FALSE,autoburnin=FALSE,transform=TRUE))
-# 
-# uni_psrf_point_estimates <- lapply(uni_psrf,function(x)x$psrf[1])%>%unlist()
-# mean(uni_psrf_point_estimates<=1.05,na.rm=T)
-# # Summarise and plot covariate effects ------------------------------------
-# 
-# # Function to summarise posteriors (tail probability is like a p-value).
-# my_summary <- function(x){
-#   out <- c(quantile(x,c(0.025,0.5,0.975)),2*min(mean(x<0),mean(x>0)))
-#   names(out) <- c("lower_95","median","upper_95","tail_probability")
-#   return(out)
-# }
-# 
-# # Nicer stage names for plot labels.
-# stage_names <- case_match(levels(model_data$stage),
-#                           "wholesupplychain"~"Whole supply chain",
-#                           "farm"~"Primary product/\nFarm",
-#                           "primaryproduct"~"Primary product",
-#                           "processing"~"Processing",
-#                           "storage"~"Storage",
-#                           #"trader"~"Trader",
-#                           "transport"~"Transport",
-#                           "wholesale"~"Wholesale")
-# 
-# # How samples are processed is described in detail for the stage effect
-# # but the sample applies elsewhere.
-# 
-# ## Stage and method effects -------------------------------------
-# 
-# # Stage effect.
-# 
-# # Find the columns of the samples matrix corresponding to this effect.
-# c1_samples <- fit_combined_samples[,grepl("^c1\\[",colnames(fit_combined_samples))]%>%
-#   # Put them into an array.
-#   array(dim=c(n_sim_fit,N_stage))
-# # Apply the my_summary function across the samples.
-# c1_quantiles <- apply(c1_samples,c(2),my_summary)
-# 
-# dimnames(c1_quantiles) <- list(statistic=c("lower_95","median","upper_95","tail_probability"),
-#                                stage=stage_names)
-# 
-# # Coerce to a data frame and put into wide format.
-# c1_quantiles%<>%as.table()%>%as.data.frame()%>%
-#   pivot_wider(names_from=statistic,values_from=Freq)
-# 
-# # Method effect.
-# 
-# method_names <- case_match(levels(model_data$method),"Supply utilization accounts"~"Supply utilization\naccounts",
-#                            .default=levels(model_data$method))
-# 
-# c2_samples <- fit_combined_samples[,grepl("^c2\\[",colnames(fit_combined_samples))]
-# colnames(c2_samples) <- method_names
-# c2_quantiles <- apply(c2_samples,c(2),my_summary)
-# 
-# 
-# dimnames(c2_quantiles) <- list(statistic=c("lower_95","median","upper_95","tail_probability"),
-#                                method=method_names)
-# 
-# c2_quantiles%<>%as.table()%>%as.data.frame()%>%
-#   pivot_wider(names_from=statistic,values_from=Freq)
-# 
-# # Combined stage and method effect plot for the paper.
-# stage_method_plot <- ggplot(full_join(c1_quantiles%>%dplyr::rename(var=stage)%>%mutate(type="(a) Supply chain stages"),
-#                                       c2_quantiles%>%dplyr::rename(var=method)%>%mutate(type="(b) Data collection methods"))%>%
-#                               mutate(var=factor(var,levels=c("Whole supply chain","Primary product/\nFarm","Storage","Transport",
-#                                                              "Processing","Wholesale","Trader","Supply utilization\naccounts",
-#                                                              "Literature review","Modelled estimates","National accounts",
-#                                                              "Survey","Other"))),
-#                             aes(x=var,ymin=lower_95,y=median,ymax=upper_95))+
-#   facet_wrap(~type,scales="free")+
-#   geom_hline(yintercept=0,linetype=2)+
-#   geom_errorbar(position = position_dodge(width=1),colour="gray15")+
-#   geom_point(position = position_dodge(width=1),colour="gray15")+
-#   theme_minimal()+
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1),
-#         strip.text = element_text(hjust=0,size=unit(11,"pt")))+
-#   labs(y="Effect on cloglog(loss percentage)",x=NULL)
-# ggsave(stage_method_plot,file=file.path(R_SWS_SHARE_PATH,"Bayesian_food_loss/Plots/stage_method_plot.png"),width=8,height=3.75,dpi=600)
-# 
-# 
-# ##  Global covariate effects -----------------------------------------------
-# 
-# a1_samples <- fit_combined_samples[,grepl("^a1\\[",colnames(fit_combined_samples))]%>%
-#   array(dim=c(n_sim_fit,P))
-# a1_quantiles <- apply(a1_samples,2,my_summary)
-# 
-# dimnames(a1_quantiles) <- list(statistic=c("lower_95","median","upper_95","tail_probability"),
-#                                coefficient=c("Intercept","Year","Rain","Temperature","GDP","LPI"))
-# 
-# a1_quantiles%<>%as.table()%>%as.data.frame()%>%
-#   pivot_wider(names_from=statistic,values_from=Freq)
-# 
-# # Plot global covariate effects.
-# ggplot(a1_quantiles,aes(x=coefficient,ymin=lower_95,y=median,ymax=upper_95))+
-#   geom_hline(yintercept=0,linetype=2)+
-#   geom_errorbar(position = position_dodge(width=1))+
-#   geom_point(position = position_dodge(width=1))+
-#   #geom_text(aes(x=coefficient,y=-1,label=paste("p = ",round(tail_probability,2))))+
-#   theme_minimal()+
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-#   labs(x="Covariate",y="Global-level model coefficient")
-# 
-# 
-# ## Regional and subregional covariate effects ----------------------------------------------
-# 
-# a2_samples <- fit_combined_samples[,grepl("^a2\\[",colnames(fit_combined_samples))]%>%
-#   array(dim=c(n_sim_fit,N_l1,P))
-# a2_quantiles <- apply(a2_samples,c(2,3),my_summary)
-# 
-# dimnames(a2_quantiles) <- list(statistic=c("lower_95","median","upper_95","tail_probability"),
-#                                subregion=levels(model_data$region_l1),
-#                                coefficient=c("Intercept","Year","Rain","Temperature","GDP","LPI"))
-# 
-# a2_quantiles%<>%as.table()%>%as.data.frame()%>%
-#   pivot_wider(names_from=statistic,values_from=Freq)
-# 
-# # Plot regional covariate effects.
-# ggplot(a2_quantiles,aes(x=subregion,ymin=lower_95,y=median,ymax=upper_95))+
-#   facet_wrap(~coefficient,nrow=2,scales = "free_y")+
-#   geom_errorbar(position = position_dodge(width=1))+
-#   geom_point(position = position_dodge(width=1))+
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-#   labs(x=NULL,y=NULL)
-# 
-# # Subregional covariate effects.
-# a3_samples <- fit_combined_samples[,grepl("^a3\\[",colnames(fit_combined_samples))]%>%
-#   array(dim=c(n_sim_fit,N_l2,P))
-# 
-# 
-# ## Food group covariate effects --------------------------------------------
-# 
-# b1_samples <- fit_combined_samples[,grepl("^b1\\[",colnames(fit_combined_samples))]%>%
-#   array(dim=c(n_sim_fit,N_basket,P))
-# b1_quantiles <- apply(b1_samples,c(2,3),my_summary)
-# 
-# dimnames(b1_quantiles) <- list(statistic=c("lower_95","median","upper_95","tail_probability"),
-#                                basket=levels(model_data$food_group),
-#                                coefficient=c("Intercept","Year","Rain","Temperature","GDP per capita","LPI"))
-# 
-# b1_quantiles%<>%as.table()%>%as.data.frame()%>%
-#   pivot_wider(names_from=statistic,values_from=Freq)
-# 
-# # Plot the food group covariate effects.
-# ggplot(b1_quantiles,aes(x=basket,ymin=lower_95,y=median,ymax=upper_95))+
-#   facet_wrap(~coefficient,nrow=2,scales = "free_y")+
-#   geom_errorbar(position = position_dodge(width=1))+
-#   geom_point(position = position_dodge(width=1))+
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1))
-# 
-# 
-# ## Compute total effects by food group (including global effects) ------------------
-# 
-# # Total covariate effects by region and food group.
-# # (currently not used).
-# Alpha_samples <- array(NA,dim=c(n_sim_fit,N_l1,N_basket,P))
-# for(i in 1:N_l1){
-#   for(j in 1:N_basket){
-#     for(k in 1:P){
-#       Alpha_samples[,i,j,k] <- a1_samples[,k]+a2_samples[,i,k]+b1_samples[,j,k]
-#     }
-#   }
-# }
-# 
-# Alpha_quantiles <- apply(Alpha_samples,c(2,3,4),my_summary)
-# dimnames(Alpha_quantiles) <- list(statistic=c("lower_95","median","upper_95","tail_probability"),
-#                                   subregion=levels(model_data$region_l1),
-#                                   basket=levels(model_data$food_group),coefficient=c("Intercept","Year","Rain","Temperature","GDP per capita","LPI"))
-# 
-# Alpha_quantiles%<>%as.table()%>%as.data.frame()%>%
-#   pivot_wider(names_from=statistic,values_from=Freq)
-# 
-# # Function to make only the first letter a capital.
-# capitalise_first <- function(text) {
-#   text <- tolower(text)
-#   if (nchar(text) == 0) return(text)
-#   paste0(toupper(substring(text, 1, 1)), substring(text, 2))
-# }
-# 
-# # Total covariate effects by food group.
-# Beta_samples <- array(NA,dim=c(n_sim_fit,N_basket,P))
-# for(j in 1:N_basket){
-#   for(k in 1:P){
-#     Beta_samples[,j,k] <- a1_samples[,k]+b1_samples[,j,k]
-#   }
-# }
-# 
-# Beta_quantiles <- apply(Beta_samples,c(2,3),my_summary)
-# dimnames(Beta_quantiles) <- list(statistic=c("lower_95","median","upper_95","tail_probability"),
-#                                  basket=sapply(levels(model_data$food_group),capitalise_first),coefficient=c("Intercept","Year","Rainfall","Temperature","GDP per capita","LPI"))
-# 
-# Beta_quantiles%<>%as.table()%>%as.data.frame()%>%
-#   pivot_wider(names_from=statistic,values_from=Freq)
-# 
-# # Plot total covariate effects by food group.
-# food_group_coefficients <- ggplot(Beta_quantiles,aes(x=basket,ymin=lower_95,y=median,ymax=upper_95))+
-#   facet_wrap(~coefficient,nrow=2,scales = "free_y")+
-#   geom_hline(yintercept = 0,linetype=2)+
-#   geom_errorbar(position = position_dodge(width=1),colour="grey15")+
-#   geom_point(position = position_dodge(width=1),colour="grey15")+
-#   #geom_point(data=Alpha_quantiles,aes(colour=subregion,shape=subregion))+
-#   theme_minimal()+
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-#   scale_colour_few(name="Region")+
-#   scale_shape_manual(values=1:7)+
-#   labs(x=NULL,y="Food group-level model coefficient",shape="Region")
-# ggsave(food_group_coefficients,file=file.path(R_SWS_SHARE_PATH,"Bayesian_food_loss/Plots/food_group_coefficients.png"),width=8,height=5,dpi=600)
-# 
-# 
-# ## Data source effect ------------------------------------------------------
-# 
-# c3_samples <- fit_combined_samples[,grepl("^c3\\[",colnames(fit_combined_samples))]%>%
-#   array(dim=c(n_sim_fit,N_source))
-# c3_quantiles <- apply(c3_samples,c(2),my_summary)
-# 
-# dimnames(c3_quantiles) <- list(statistic=c("lower_95","median","upper_95","tail_probability"),
-#                                source=levels(model_data$source))
-# 
-# c3_quantiles%<>%as.table()%>%as.data.frame()%>%
-#   pivot_wider(names_from=statistic,values_from=Freq)%>%
-#   left_join(select(model_data,source,method,tag_datacollection)%>%distinct())%>%
-#   mutate(method=case_match(method,"Supply utilization accounts"~"Supply utilization\naccounts",
-#                            .default =method))%>%
-#   left_join(mutate(c2_quantiles,c2=median)%>%select(method,c2))%>%
-#   mutate(method=factor(method,levels=levels(c2_quantiles$method)))
-# 
-# # Plot data source effect distribution by data method.
-# # ggplot(c3_quantiles,aes(x=method,y=median+c2))+
-# #   geom_boxplot(position = position_dodge(width=1))+
-# #   geom_jitter(position = position_dodge(width=1))+
-# #   theme_minimal()+
-# #   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-# #   labs(x="Method",y="Effect on loss percentage within model")
-# 
-# c3_quantiles%>%group_by(method)%>%summarise(m1=mean(median),m2=mean(median+c2))
-# 
-# 
-# # In-sample model checking ------------------------------------------------
-# 
-# # Extract samples for the means for in-sample data and variance parameter.
-# mu_samples <- do.call("rbind",fit_samples_list$samples2)%>%
-#   array(dim=c(n_sim_fit,N))
-# sigma_y_samples <- fit_combined_samples[,grepl("^sigma_y",colnames(fit_combined_samples))]
-# 
-# # Simulate posterior predictive replicates of the loss percentages.
-# y_replicates <- icloglog(apply(mu_samples,2,function(x)rnorm(n_sim_fit,x,sigma_y_samples)))
-# 
-# 
-# # Model training data row index. 
-# model_data$row <- 1:nrow(model_data)
-# 
-# # Coerce to a data frame.
-# y_replicates_df <- y_replicates%>%as.data.frame.table()%>%dplyr::rename(loss_percentage=Freq)%>%
-#   dplyr::rename(sample=Var1,row=Var2)%>%
-#   mutate(row=as.numeric(row))%>%
-#   left_join(dplyr::rename(select(model_data,row,food_group,stage_original,loss_percentage),loss_percentage_data=loss_percentage))
-# # Function to compute quantiles from 0% to 95%.
-# compute_quantiles <- function(x,y){
-#   return(data.frame(quantiles=seq(0.01,0.90,by=0.01),
-#                     values=quantile(x$loss_percentage,seq(0.01,0.90,by=0.01))))
-# }
-# 
-# # Compute replicate quantiles overall and by food group.
-# y_replicate_quantiles_df <- full_join(
-#   y_replicates_df%>%group_by(sample,food_group)%>%group_modify(compute_quantiles),
-#   y_replicates_df%>%group_by(sample)%>%group_modify(compute_quantiles)%>%mutate(food_group="All products")
-# )
-# 
-# # Compute mean and uncertainty intervals for the posterior predictive quantiles.
-# y_replicate_quantiles_df%<>%group_by(food_group,quantiles)%>%dplyr::summarise(lower=quantile(values,0.025),
-#                                                                               median=median(values),
-#                                                                               upper=quantile(values,0.975))
-# 
-# # Compute the quantiles for the original data.
-# y_quantiles_df <- full_join(
-#   model_data%>%
-#     group_by(food_group)%>%group_modify(compute_quantiles),
-#   model_data%>%
-#     group_by()%>%group_modify(compute_quantiles)%>%mutate(food_group="All products")
-# )
-# 
-# y_replicate_quantiles_df%<>%left_join(y_quantiles_df)%>%
-#   mutate(food_group=sapply(food_group,capitalise_first))
-# 
-# # # Quantile-quantile plot.
-# # by_basket_QQ <- ggplot(y_replicate_quantiles_df,aes(x=values,ymin=lower,y=median,ymax=upper))+
-# #   facet_wrap(~food_group,nrow=2)+
-# #   geom_abline()+
-# #   geom_ribbon(alpha=0.4,aes(colour=NULL))+
-# #   geom_point(colour="grey15")+
-# #   theme_minimal()+
-# #   scale_x_continuous(labels=scales::label_percent(),breaks=c(0,0.2,0.4))+
-# #   scale_y_continuous(labels=scales::label_percent(),breaks=c(0,0.2,0.4,0.6))+
-# #   scale_color_few()+scale_fill_few()+
-# #   guides(fill="none",colour="none")+
-# #   labs(x="Observed loss percentage quantiles",y="Simulated loss percentage quantiles")
-# 
-# #ggsave(by_basket_QQ,file="Output plots/Model checking/quantile-quantile_plots.png",width=8,height=4,dpi=600)
-# 
-# 
-# # How important is each effect --------------------------------------------
-# 
-# # Just looking at variance parameters out of curiosity.
-# sigmas <- colnames(fit_combined_samples[,grepl("^sigma",colnames(fit_combined_samples))])
-# round(sapply(sigmas,function(x)my_summary(fit_combined_samples[,x]))[2,],2)
-# 
-# sigma_a3 <- fit_combined_samples[,grepl("^sigma_a3",colnames(fit_combined_samples))]
-# 
-# # Posterior predictive model fit variance.
-# mu_variance <- apply(mu_samples,1,var)
-# 
-# # Posterior predictive loss percentage variance.
-# y_variance <- mu_variance + sigma_y_samples^2
-# 
-# 
-# # Compute the covariate effects at different levels.
-# covar_effects <- array(0,dim=c(n_sim_fit,N,9,5))
-# covar_values <- cbind(1,scale(loss_constants$year),scale(loss_constants$rain),
-#                       scale(loss_constants$temp),scale(loss_constants$gdp),
-#                       scale(loss_constants$lpi))
-# for(j in 1:N){
-#   for(k in 1:6){
-#     covar_effects[,j,k,1] <- a1_samples[,k]*covar_values[j,k] # Global.
-#     covar_effects[,j,k,2] <- a2_samples[,loss_constants$region_l1[j],k]*covar_values[j,k] # Regional.
-#     covar_effects[,j,k,3] <- a3_samples[,loss_constants$region_l2[j],k]*sigma_a3[,k]*covar_values[j,k] # Subregional.
-#     covar_effects[,j,k,4] <- b1_samples[,loss_constants$basket[j],k]*covar_values[j,k] # Food group.
-#   }
-#   covar_effects[,j,7,1] <- c1_samples[,loss_constants$stage[j]] # Stage effect.
-#   covar_effects[,j,8,1] <- c2_samples[,loss_constants$method[j]] # Method effect.
-#   for(k in 1:8){
-#     covar_effects[,j,k,5] <- rowSums(covar_effects[,j,k,1:4]) # Total effect of each covariate.
-#   }
-#   for(l in 1:5){
-#     covar_effects[,j,9,l] <- rowSums(covar_effects[,j,,l]) # Total effect at each level.
-#   }
-# }
-# 
-# 
-# # Function to compute pseudo p-values (not currently used).
-# pseudo_p_values <- apply(covar_effects,c(2,3),function(x){
-#   if(all(x==0)){
-#     return(NA)
-#   }else{
-#     return(2*min(mean(x<0),mean(x>0)))
-#   }
-# })
-# 
-# # Compute percentage of variance explained by covariate/model effects
-# # at different levels.
-# variance_explained <- array(dim=c(n_sim_fit,9,5,2))
-# for(k in 1:9){
-#   for(l in 1:5){
-#     variance_explained[,k,l,1] <- apply(covar_effects[,,k,l],1,var)/y_variance
-#     variance_explained[,k,l,2] <- apply(covar_effects[,,k,l],1,var)/mu_variance
-#   }
-# }
-# 
-# # Median posterior predictive variance explained.
-# variance_explained_medians <- array(apply(variance_explained,c(2,3,4),median),dim=c(9,5,2),dimnames = 
-#                                       list(Covariate=c("Intercept","Year","Rainfall","Temperature","GDP per capita","LPI",
-#                                                        "Stage","Data method","Total"),
-#                                            Level=c("Global","Region","Subregion","Food group","Total"),
-#                                            Type=c("All variance","Model fit variance")))
-# 
-# # Table for the paper.
-# variance_explained_medians%<>%as.data.frame.table()%>%dplyr::rename(R2=Freq)%>%
-#   mutate(R2=round(R2,3))%>%
-#   pivot_wider(names_from = Covariate,values_from = R2)%>%
-#   arrange(Type,Level)
-# 
-# write_excel_csv(variance_explained_medians,file=file.path(R_SWS_SHARE_PATH,"Bayesian_food_loss/Tables/variance_explained.csv"))
-# 
-# # Variance explained by data source.
-# (apply(sapply(1:N,function(j)c3_samples[,loss_constants$source[j]]),1,var)/
-#     y_variance)%>%median()
-# 
-# # Residual variance term.
-# median(sigma_y_samples^2/y_variance)
-# 
-# 
-# 
-# 
-# 
+report_dir = file.path(R_SWS_SHARE_PATH, "Bayesian_food_loss", "Convergence_report")
+dir.create(report_dir, recursive = TRUE, showWarnings = FALSE)
+
+#Potential Scale Reduction Factor
+uni_psrf = lapply(
+    colnames(fit_samples_list$samples[[1]]),
+    function(x) {
+        gelman.diag(
+            fit_samples_list$samples[, x],
+            multivariate = FALSE,
+            autoburnin = FALSE,
+            transform = TRUE
+        )
+    }
+)
+
+param_names = colnames(fit_samples_list$samples[[1]])
+
+psrf_df = data.frame(
+    parameter = param_names,
+    psrf_point = sapply(uni_psrf, function(x) x$psrf[1]),
+    psrf_upper = sapply(uni_psrf, function(x) x$psrf[2]), #llowing for sampling uncertainty, PSRF could plausibly be as high as this upper value.
+    stringsAsFactors = FALSE
+)
+
+prop_psrf_105 = mean(psrf_df$psrf_point <= 1.05, na.rm = TRUE)
+#proportion of psrf less than 1.05
+
+# Save CSV 
+write.csv(
+    psrf_df,
+    file = file.path(report_dir, "psrf_diagnostics.csv"),
+    row.names = FALSE
+)
+
+
+# Show the worst parameters first
+psrf_df = psrf_df[order(-psrf_df$psrf_point), ] #sort from largest to smallest.
+top_psrf_df = head(psrf_df, 50)
+
+fmt_num = function(x, digits = 3) {
+    ifelse(is.na(x), "NA", formatC(x, digits = digits, format = "f"))
+}
+
+
+
+################################################################################
+# Geweke diagnostic
+# Compute Geweke z-scores separately for each chain, then summarise by parameter
+################################################################################
+geweke_list = lapply(fit_samples_list$samples, function(chain_obj) {
+    out = tryCatch(coda::geweke.diag(chain_obj)$z, error = function(e) NULL)
+    if (is.null(out)) {
+        z = rep(NA_real_, length(param_names))
+        names(z) = param_names
+        return(z)
+    }
+    z = rep(NA_real_, length(param_names))
+    names(z) = param_names
+    z[names(out)] = out
+    z
+})
+
+geweke_mat = do.call(cbind, geweke_list)
+
+
+#there are c1, c2 and c3 which are set to 0 since they represent baseline stage, method and source effects corrispondingly
+all_na_rows = apply(geweke_mat, 1, function(x) all(is.na(x)))
+
+if (any(all_na_rows)) {
+    geweke_mat = geweke_mat[!all_na_rows, , drop = FALSE]
+    param_names_geweke = param_names[!all_na_rows]
+} else {
+    param_names_geweke = param_names
+}
+
+
+
+geweke_df = data.frame(
+    parameter = param_names_geweke,
+    geweke_mean_abs_z = rowMeans(abs(geweke_mat), na.rm = TRUE),
+    geweke_max_abs_z  = apply(abs(geweke_mat), 1, max, na.rm = TRUE),
+    stringsAsFactors = FALSE
+)
+
+prop_geweke_2 = mean(geweke_df$geweke_max_abs_z <= 2, na.rm = TRUE)
+#proportion of parameters whose Geweke diagnostic looks acceptable under the chosen threshold of 2
+
+###########################################################################
+# Merge diagnostics
+###########################################################################
+diag_df = merge(psrf_df, geweke_df, by = "parameter", all = TRUE)
+
+write.csv(
+    diag_df,
+    file = file.path(report_dir, "convergence_diagnostics.csv"),
+    row.names = FALSE
+)
+
+# Worst parameters first
+psrf_df = psrf_df[order(-psrf_df$psrf_point), ]
+top_psrf_df = head(psrf_df, 50)
+
+geweke_df = geweke_df[order(-geweke_df$geweke_max_abs_z), ]
+top_geweke_df = head(geweke_df, 50)
+
+fmt_num = function(x, digits = 3) {
+    ifelse(is.na(x), "NA", formatC(x, digits = digits, format = "f"))
+}
+
+html_table_from_df = function(df) {
+    if (nrow(df) == 0) {
+        return(htmltools::HTML("<p><em>No rows to display.</em></p>"))
+    }
+    
+    header = paste0(
+        "<tr>",
+        paste(sprintf("<th>%s</th>", htmltools::htmlEscape(names(df))), collapse = ""),
+        "</tr>"
+    )
+    
+    rows = apply(df, 1, function(r) {
+        cells = paste0(
+            "<td>", htmltools::htmlEscape(as.character(r[1])), "</td>",
+            paste(
+                vapply(r[-1], function(v) {
+                    paste0("<td>", fmt_num(as.numeric(v), 3), "</td>")
+                }, character(1)),
+                collapse = ""
+            )
+        )
+        paste0("<tr>", cells, "</tr>")
+    })
+    
+    htmltools::HTML(
+        paste0(
+            "<table style='border-collapse:collapse;width:100%;'>",
+            "<thead>", header, "</thead>",
+            "<tbody>", paste(rows, collapse = "\n"), "</tbody>",
+            "</table>"
+        )
+    )
+}
+
+
+report_doc = htmltools::tags$html(
+    htmltools::tags$head(
+        htmltools::tags$meta(charset = "utf-8"),
+        htmltools::tags$title("Bayesian food loss model - convergence report"),
+        htmltools::tags$style(htmltools::HTML("
+      body { font-family: Arial, Helvetica, sans-serif; margin: 32px; color: #222; line-height: 1.5; }
+      h1, h2, h3 { color: #1f3b5b; }
+      table, th, td { border: 1px solid #d9d9d9; }
+      table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+      th, td { padding: 8px; text-align: left; font-size: 13px; vertical-align: top; }
+      th { background: #f3f6fa; }
+      code { background: #f7f7f7; padding: 2px 4px; border-radius: 3px; }
+      ul { margin-top: 0.3em; }
+    "))
+    ),
+    htmltools::tags$body(
+        htmltools::tags$h1("Bayesian food loss model - convergence report"),
+        
+        htmltools::tags$p(
+            "This report summarizes convergence diagnostics for the posterior samples produced by the Bayesian food loss model. ",
+            "The diagnostics are computed from the saved MCMC chains and are reported at the level of individual monitored parameters. ",
+            "The purpose of the report is descriptive: it documents the distribution of diagnostic values and highlights the parameters with the largest values in the monitored output."
+        ),
+        
+        htmltools::tags$h2("Convergence diagnostics"),
+        htmltools::tags$p(
+            "This report summarizes two standard diagnostics for the monitored MCMC parameters: ",
+            htmltools::tags$b("Gelman-Rubin PSRF"),
+            " and ",
+            htmltools::tags$b("Geweke z-scores"),
+            "."
+        ),
+        htmltools::tags$p(
+            htmltools::tags$b("PSRF"),
+            " compares the behavior of parallel chains. Values close to 1 indicate that between-chain and within-chain variation are similar. ",
+            "For each parameter, the report shows both the PSRF point estimate and the upper limit returned by ",
+            htmltools::tags$code("gelman.diag(...)"),
+            "."
+        ),
+        htmltools::tags$p(
+            htmltools::tags$b("Geweke"),
+            " is a within-chain diagnostic. It compares the early part of a chain with the late part of the same chain using a z-score. ",
+            "In this report, Geweke values are first computed separately for each chain and then summarized across chains using both the mean absolute z-score and the maximum absolute z-score."
+        ),
+        htmltools::tags$p(
+            "The proportions shown below are summary counts of how many monitored parameters fall under the chosen reference thresholds ",
+            htmltools::tags$code("PSRF <= 1.05"),
+            " and ",
+            htmltools::tags$code("max |Geweke z| <= 2"),
+            ". These proportions are included for descriptive reporting only."
+        ),
+        
+        htmltools::tags$ul(
+            htmltools::tags$li(sprintf("Number of monitored parameters: %d", nrow(diag_df))),
+            htmltools::tags$li(sprintf("Proportion with PSRF <= 1.05: %s", fmt_num(prop_psrf_105, 3))),
+            htmltools::tags$li(sprintf("Proportion with max |Geweke z| <= 2: %s", fmt_num(prop_geweke_2, 3)))
+        ),
+        
+        htmltools::tags$h2("How to read the tables"),
+        htmltools::tags$p(
+            "The sections below show the ",
+            htmltools::tags$b("worst values"),
+            ", meaning the parameters with the highest PSRF values or the highest Geweke values."
+        ),
+        htmltools::tags$ul(
+            htmltools::tags$li(
+                htmltools::tags$code("parameter"),
+                ": the model parameter name as stored in the MCMC output."
+            ),
+            htmltools::tags$li(
+                htmltools::tags$code("psrf_point"),
+                ": the point estimate of the potential scale reduction factor."
+            ),
+            htmltools::tags$li(
+                htmltools::tags$code("psrf_upper"),
+                ": the upper confidence limit returned by ",
+                htmltools::tags$code("gelman.diag(...)"),
+                "."
+            ),
+            htmltools::tags$li(
+                htmltools::tags$code("geweke_mean_abs_z"),
+                ": mean absolute Geweke z-score across chains."
+            ),
+            htmltools::tags$li(
+                htmltools::tags$code("geweke_max_abs_z"),
+                ": maximum absolute Geweke z-score across chains."
+            )
+        ),
+        
+        htmltools::tags$p(
+            "The tables labelled ",
+            htmltools::tags$b("Worst PSRF values"),
+            " and ",
+            htmltools::tags$b("Worst Geweke values"),
+            " are ranking tables. ",
+            "They do not contain all monitored parameters; instead, they show only the parameters with the largest diagnostic values. ",
+            "The PSRF table is ordered from the largest ",
+            htmltools::tags$code("psrf_point"),
+            " downward, while the Geweke table is ordered from the largest ",
+            htmltools::tags$code("geweke_max_abs_z"),
+            " downward."
+        ),
+        htmltools::tags$p(
+            "A parameter may appear near the top of one table and not the other, because PSRF and Geweke measure different aspects of chain behavior. ",
+            "PSRF focuses on agreement across chains, whereas Geweke focuses on within-chain stability between the beginning and the end of the chain."
+        ),
+        
+        
+        htmltools::tags$h2("How to read parameter names"),
+        htmltools::tags$p(
+            "Parameter names come directly from the NIMBLE model object. ",
+            "They follow the array structure used in the model code, so the name indicates both ",
+            htmltools::tags$i("which block of effects"),
+            " the parameter belongs to and ",
+            htmltools::tags$i("which index"),
+            " inside that block is being referenced."
+        ),
+        htmltools::tags$p(
+            "The coefficient index used in several parameter families is:",
+            " ",
+            htmltools::tags$code("1 = intercept"),
+            ", ",
+            htmltools::tags$code("2 = year"),
+            ", ",
+            htmltools::tags$code("3 = rainfall"),
+            ", ",
+            htmltools::tags$code("4 = temperature"),
+            ", ",
+            htmltools::tags$code("5 = GDP"),
+            ", ",
+            htmltools::tags$code("6 = LPI"),
+            "."
+        ),
+        htmltools::tags$ul(
+            htmltools::tags$li(
+                htmltools::tags$code("a1[p]"),
+                ": global coefficient for covariate or intercept index ",
+                htmltools::tags$code("p"),
+                ". Example: ",
+                htmltools::tags$code("a1[6]"),
+                " is the global LPI effect."
+            ),
+            htmltools::tags$li(
+                htmltools::tags$code("a2[r,p]"),
+                ": level-1 regional effect for region ",
+                htmltools::tags$code("r"),
+                " and coefficient ",
+                htmltools::tags$code("p"),
+                ". Example: ",
+                htmltools::tags$code("a2[2,6]"),
+                " is the level-1 regional adjustment to the LPI effect for the second level-1 region."
+            ),
+            htmltools::tags$li(
+                htmltools::tags$code("a3[r,p]"),
+                ": level-2 subregional effect for subregion ",
+                htmltools::tags$code("r"),
+                " and coefficient ",
+                htmltools::tags$code("p"),
+                "."
+            ),
+            htmltools::tags$li(
+                htmltools::tags$code("a4[c,p]"),
+                ": country-level effect for country index ",
+                htmltools::tags$code("c"),
+                " and coefficient ",
+                htmltools::tags$code("p"),
+                ". In this model, country effects are defined only for intercept and year."
+            ),
+            htmltools::tags$li(
+                htmltools::tags$code("b1[g,p]"),
+                ": food-group effect for food group ",
+                htmltools::tags$code("g"),
+                " and coefficient ",
+                htmltools::tags$code("p"),
+                "."
+            ),
+            htmltools::tags$li(
+                htmltools::tags$code("b2[i,p]"),
+                ": product effect for product ",
+                htmltools::tags$code("i"),
+                " and coefficient ",
+                htmltools::tags$code("p"),
+                ". In this model, product effects are defined only for intercept and year."
+            ),
+            htmltools::tags$li(
+                htmltools::tags$code("b3[i,p]"),
+                ": country-food-group interaction effect. These are included only for intercept and year effects."
+            ),
+            
+            htmltools::tags$li(
+                htmltools::tags$code("b4[i,p]"),
+                ": country-product interaction effect. These are included only for intercept and year effects."
+            ),
+            htmltools::tags$li(
+                htmltools::tags$code("c1[s]"),
+                ": additive effect of supply-chain stage ",
+                htmltools::tags$code("s"),
+                "."
+            ),
+            htmltools::tags$li(
+                htmltools::tags$code("c2[m]"),
+                ": additive effect of data-collection method ",
+                htmltools::tags$code("m"),
+                "."
+            ),
+            htmltools::tags$li(
+                htmltools::tags$code("c3[s]"),
+                ": additive effect of data source ",
+                htmltools::tags$code("s"),
+                "."
+            )
+        ),
+        htmltools::tags$p(
+            "The numeric indices correspond to the factor levels used when the model was fitted. ",
+            "For example, in ",
+            htmltools::tags$code("a2[2,6]"),
+            ", the first index refers to the second level-1 region in the factor ordering used by the model, and the second index identifies coefficient 6, which is the LPI effect."
+        ),
+        htmltools::tags$p(
+            "Some baseline effects are fixed deterministically in the model, for example ",
+            htmltools::tags$code("c1[1]"),
+            ", ",
+            htmltools::tags$code("c2[1]"),
+            ", and ",
+            htmltools::tags$code("c3[1]"),
+            ". These baseline parameters are set to zero by construction and therefore are not associated with sampled variation in the chains in the same way as the stochastic parameters."
+        ),
+        
+        htmltools::tags$h2("Worst PSRF values"),
+        htmltools::tags$p(
+            "These are the parameters with the highest PSRF values in the fitted model."
+        ),
+        html_table_from_df(top_psrf_df),
+        
+        htmltools::tags$h2("Worst Geweke values"),
+        htmltools::tags$p(
+            "Geweke z-scores are summarized here across chains using both the mean absolute z-score and the maximum absolute z-score for each parameter (the ranking is based on the maximum abs z-score)."
+        ),
+        html_table_from_df(top_geweke_df),
+        
+        
+        htmltools::tags$h2("Summary"),
+        htmltools::tags$ul(
+            htmltools::tags$li(sprintf("Proportion with PSRF <= 1.05: %s", fmt_num(prop_psrf_105, 3))),
+            htmltools::tags$li(sprintf("Proportion with max |Geweke z| <= 2: %s", fmt_num(prop_geweke_2, 3)))
+        )
+    )
+)
+
+
+
+
+report_path = file.path(report_dir, "convergence_report.html")
+
+htmltools::save_html(report_doc, file = report_path)
+
+
+# Retrieve the path to the output folder.
+out_dir = Sys.getenv("OUTPUT_FOLDER")
+
+
+###############################
+# Email the report
+###############################
+send_report <- function(to, domain_code, report_path) {
+    from <- "<sws@fao.org>"
+    to <- paste0("<", to, ">")
+    subject <- "Bayesian food loss model - convergence report"
+    
+    htmlBody <- paste(readLines(report_path), collapse = "\n")
+    #htmlBody <- report
+    
+    # try to generate and send the email, fail if report too big
+    tryCatch(
+        {
+            # Convert the HTML body to MIME format
+            body <- mime_part(htmlBody)
+            body[["headers"]][["Content-Type"]] <- "text/html"
+            
+            # Create MIME parts for the attachments
+            report_att <- mime_part(x = report_path, name = basename(report_path))
+            
+            # Combine the HTML body and attachments into the email message
+            msg <- list(body, report_att)
+            
+            
+            # Sending the email
+            sendmail(
+                from = from,
+                to = to,
+                subject = subject,
+                msg = msg
+            )
+        },
+        error = function(e) {
+            message("◬ Error: ", e$message)
+            message("Please download report from task artifacts")
+        }
+    )
+}
+
+
+send_report(
+    to = swsContext.userEmail,
+    domain_code = "lossWaste",
+    report_path = report_path
+)
