@@ -107,8 +107,12 @@ selectedYear <- as.character(years_out)
 #load(file.path(R_SWS_SHARE_PATH,'Bayesian_food_loss/Inputs/CropCalendar2.RData'))
 #load(file.path(R_SWS_SHARE_PATH,'Bayesian_food_loss/Inputs/input_data2.RData'))
 
-lapply(list.files("R", pattern = "\\.R$", full.names = TRUE), source)
+#lapply(list.files("R", pattern = "\\.R$", full.names = TRUE), source)
+source_files <- c(
+    list.files(file.path(if (CheckDebug()) "." else Sys.getenv("ROOT_PATH"), "R"), full.names = TRUE, pattern = "\\.R$")
+)
 
+invisible(lapply(source_files, source))
 ############################
 # Training data construction
 ############################
