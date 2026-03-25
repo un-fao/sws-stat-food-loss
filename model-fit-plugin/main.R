@@ -1,15 +1,17 @@
 #########################################################
 #
 # Description:
-# This plugin constructs the model training dataset for the
+# This plugin prepares the model training dataset for the
 # Bayesian food loss workflow and fits the hierarchical
-# Bayesian model in NIMBLE. It reads the prepared covariates
-# from SWS, rebuilds the country grouping structure, filters
-# the valid production support, joins harvest calendar,
-# weather, GDP, and LPI covariates to the observed loss data,
-# applies the required preprocessing steps, and estimates the
-# posterior model parameters. It also saves the fitted samples
-# and auxiliary objects needed for the prediction phase.
+# Bayesian model in NIMBLE. It pulls production, import,
+# and protected loss data from SWS, reconstructs observed
+# loss percentages from these inputs, combines them with
+# literature-based loss factor data, rebuilds the country
+# grouping structure, filters valid production support,
+# joins harvest calendar, weather, GDP, and LPI covariates,
+# applies the required preprocessing steps, and saves the
+# fitted model outputs and auxiliary objects needed for
+# the prediction phase.
 #
 # Main outputs:
 # - model_data.qs2
@@ -25,6 +27,7 @@
 # - start_year: first year to include (default 1991)
 # - end_year: last year to include (default 2024)
 #########################################################
+
 library(mgcv)
 #install.packages("nimble")
 library(nimble)
@@ -76,14 +79,6 @@ if (faosws::CheckDebug()) {
 
 R_SWS_SHARE_PATH <- Sys.getenv("R_SWS_SHARE_PATH")
 
-#####################
-#Prepare_model_data
-
-load(file.path(R_SWS_SHARE_PATH,'Bayesian_food_loss/Inputs/input_data2.RData'))
-load(file.path(R_SWS_SHARE_PATH,'Bayesian_food_loss/Inputs/FAOCrops2.RData'))
-load(file.path(R_SWS_SHARE_PATH,'Bayesian_food_loss/Inputs/CropCalendar2.RData'))
-
-
 start_year = as.numeric(ifelse(
     is.null(swsContext.computationParams$start_year),
     "1991",
@@ -96,15 +91,1092 @@ end_year = as.numeric(ifelse(
     swsContext.computationParams$end_year
 ))
 
-years_out = start_year:end_year
+if (end_year < start_year) {
+    stop("end_year must be greater than or equal to start_year")
+}
+
+years_out <- start_year:end_year
+selectedYear <- as.character(years_out)
 #vector of years for which the plugin retrieves inputs and produces outputs.
 
 
-# Read in some required inputs.
-#load("Inputs/input_data.RData")
-#load("Inputs/FAOCrops.RData")
-#load("Inputs/CropCalendar.RData")
+#####################
+#Prepare_model_data
 
+#load(file.path(R_SWS_SHARE_PATH,'Bayesian_food_loss/Inputs/FAOCrops2.RData'))
+#load(file.path(R_SWS_SHARE_PATH,'Bayesian_food_loss/Inputs/CropCalendar2.RData'))
+#load(file.path(R_SWS_SHARE_PATH,'Bayesian_food_loss/Inputs/input_data2.RData'))
+
+lapply(list.files("R", pattern = "\\.R$", full.names = TRUE), source)
+
+############################
+# Training data construction
+############################
+
+REMOVE_VARS_METHOD <- 'new'
+CLEAN_CONVFACTOR <- TRUE
+AGGREGATE_ACTIVITIES <- TRUE
+COMPLETE_COUNTRYGROUPS <- TRUE # Add missing country?
+COMPLETE_CROPCALENDAR <- TRUE # Complete crop calendar?
+
+#--- LIBRARIES AND PARAMETERS ----
+LOAD_LOCAL <- FALSE
+GET_SWS_DATA <- TRUE
+REGIONAL_MODEL_MK <- FALSE # Use FSC_Markov_Reg instead of FSC_Markov
+REGIONAL_MODEL_RandEff <- TRUE # Use random effect regional model
+
+library(stats4)
+library(data.table)
+library(plyr)
+library(dplyr)
+library(scales)
+
+library(faosws)
+library(faoswsUtil)
+library(faoswsFlag)
+
+
+rapid_ass <- as.data.table(dplyr::tribble(
+    ~"geographicaream49",~"measureditemcpc",~"timepointyears",~"percentage_loss_of_quantity",~"analyst",
+    "288","21",2008,"2.5","alicia.english@fao.org",
+    "288","01316",2009,"5","x.noemail@fao.org",
+    "410","0111",2014,"13","",
+    "410","0111",2014,"15","",
+    "288","01233",2010,"2.8-22","alicia.english@fao.org",
+    "204","01651",2009,"5.9","x.noemail@fao.org",
+    "404","0112",2012,"2.9-8.5","alicia.english@fao.org",
+    "484","01318",2013,"32.78","alicia.english@fao.org",
+    "204","01318",2010,"5-22.8","alicia.english@fao.org",
+    "288","01359",2010,"30-40","alicia.english@fao.org",
+    "204","01323",2009,"5","x.noemail@fao.org",
+    "204","01651",2009,"10","x.noemail@fao.org",
+    "204","01651",2009,"18","x.noemail@fao.org",
+    "288","21",2008,"1.25-8.66","alicia.english@fao.org",
+    "410","0113",2014,"10","",
+    "694","012",2010,"10.0-20","alicia.english@fao.org",
+    "646","01318",2009,"15.9","x.noemail@fao.org",
+    "288","01313",2010,"26","alicia.english@fao.org",
+    "646","01199",2009,"15","x.noemail@fao.org",
+    "204","01234",2009,"24","x.noemail@fao.org",
+    "204","01234",2009,"29","x.noemail@fao.org",
+    "288","01239.01",2009,"8.5","",
+    "288","01239.01",2009,"6.3","",
+    "410","0111",2014,"8","alicia.english@fao.org",
+    "410","0115",2014,"13","",
+    "484","01330",2013,"45.53","alicia.english@fao.org",
+    "204","01234",2010,"26.4-28","alicia.english@fao.org",
+    "646","01234",2009,"2","x.noemail@fao.org",
+    "646","01312",2009,"9.5","x.noemail@fao.org",
+    "566","0112",2013,"2.5","x.noemail@fao.org",
+    "800","01445",2017,"2%","alicia.english@fao.org",
+    "356","01234",2010,"10.3-13.46","alicia.english@fao.org",
+    "204","01316",2010,"20.8-70","alicia.english@fao.org",
+    "566","0112",2013,"3","x.noemail@fao.org",
+    "288","01651",2010,"8.7-17.5","alicia.english@fao.org",
+    "288","01233",2009,"2.8","x.noemail@fao.org",
+    "288","01316",2009,"0.4","x.noemail@fao.org",
+    "410","0112",2014,"13","",
+    "410","0115",2014,"15","",
+    "566","0112",2013,"6","x.noemail@fao.org",
+    "800","01445",2017,"35%","alicia.english@fao.org",
+    "484","01652",2013,"44.14","alicia.english@fao.org",
+    "404","01312",2012,"0.02","alicia.english@fao.org",
+    "204","01323",2009,"11.6","x.noemail@fao.org",
+    "484","01229",2013,"41.24","alicia.english@fao.org",
+    "204","01199",2009,"89.5","x.noemail@fao.org",
+    "204","01323",2009,"51","x.noemail@fao.org",
+    "288","01212",2009,"8","x.noemail@fao.org",
+    "288","01234",2010,"25","alicia.english@fao.org",
+    "404","0112",2012,".1-8.8","alicia.english@fao.org",
+    "404","0112",2012,"8-8.8","alicia.english@fao.org",
+    "800","0112",2017,"17%","alicia.english@fao.org",
+    "204","01219.90",2010,"34-89","alicia.english@fao.org",
+    "646","01318",2009,"17","x.noemail@fao.org",
+    "356","01316",2010,"18.5-31","alicia.english@fao.org",
+    "566","0112",2013,"2","x.noemail@fao.org",
+    "288","01316",2010,"10","x.noemail@fao.org",
+    "204","01323",2009,"10","x.noemail@fao.org",
+    "694","0113",2010,"7","alicia.english@fao.org",
+    "646","01199",2009,"32.5","x.noemail@fao.org",
+    "288","01239.01",2010,"16.6","alicia.english@fao.org",
+    "288","01316",2009,"8","x.noemail@fao.org",
+    "356","01239.01",2010,"2.0-7","alicia.english@fao.org",
+    "204","01651",2010,"8.0-11","alicia.english@fao.org",
+    "288","012",2010,"30-40","alicia.english@fao.org",
+    "288","01234",2010,"22.5","x.noemail@fao.org",
+    "204","01234",2010,"23-29","alicia.english@fao.org",
+    "404","01359",2010,"30","alicia.english@fao.org",
+    "356","01253.01",2010,"70-80","alicia.english@fao.org",
+    "646","01234",2009,"11","x.noemail@fao.org",
+    "646","01312",2009,"7.5","x.noemail@fao.org",
+    "288","01233",2009,"16.2","x.noemail@fao.org",
+    "288","01234",2009,"21.5","x.noemail@fao.org",
+    "288","01239.01",2009,"28","x.noemail@fao.org",
+    "410","0115",2014,"14","",
+    "356","01239.01",2010,"2.0-5","alicia.english@fao.org",
+    "484","01323",2013,"23.22","alicia.english@fao.org",
+    "646","01234",2009,"6.5","x.noemail@fao.org",
+    "410","0112",2014,"18","alicia.english@fao.org",
+    "646","01199",2009,"8.3","x.noemail@fao.org",
+    "204","01253.01",2010,"15-72.5","alicia.english@fao.org",
+    "566","0112",2013,"2","x.noemail@fao.org",
+    "288","01318",2010,"20","alicia.english@fao.org",
+    "484","01322",2013,"33.38","alicia.english@fao.org",
+    "356","01316",2010,"25-30","alicia.english@fao.org",
+    "356","01234",2010,"8.18-10.69","alicia.english@fao.org",
+    "356","01232",2010,"10.0-20","alicia.english@fao.org",
+    "288","01234",2010,"21.5","alicia.english@fao.org",
+    "566","0112",2013,"5","x.noemail@fao.org",
+    "834","21",1996,"0.1","",
+    "566","0112",2013,"2","x.noemail@fao.org",
+    "404","21",2012,"1.0-2","alicia.english@fao.org",
+    "484","01311",2013,"53.97","alicia.english@fao.org",
+    "204","01316",2010,"22.5-76.5","alicia.english@fao.org",
+    "288","01239.01",2010,"6.0-28","",
+    "204","01234",2009,"31.2","x.noemail@fao.org",
+    "404","0112",2012,"1","alicia.english@fao.org",
+    "484","01233",2013,"49.07","alicia.english@fao.org",
+    "646","01199",2009,"13.5","x.noemail@fao.org",
+    "410","0112",2014,"18","",
+    "800","0112",2017,"5%","alicia.english@fao.org",
+    "484","21111.01",2013,"34.87","alicia.english@fao.org",
+    "484","23140",2013,"9.39","alicia.english@fao.org",
+    "288","01239.01",2010,"0-4.5","alicia.english@fao.org",
+    "356","01239.01",2010,"10.5-29","alicia.english@fao.org",
+    "288","01316",2009,"2.5","x.noemail@fao.org",
+    "410","0112",2014,"11","alicia.english@fao.org",
+    "410","0115",2014,"15","",
+    "800","01445",2017,"5%","alicia.english@fao.org",
+    "356","01312",2010,"26-31","alicia.english@fao.org",
+    "288","01212",2010,"6.5-32","alicia.english@fao.org",
+    "356","01239.01",2010,"3.0-5","alicia.english@fao.org",
+    "356","01233",2010,"45-80","alicia.english@fao.org",
+    "646","01312",2009,"14.8","x.noemail@fao.org",
+    "204","01323",2009,"41","x.noemail@fao.org",
+    "288","01239.01",2009,"2.3","x.noemail@fao.org",
+    "410","0115",2014,"8","alicia.english@fao.org",
+    "356","01316",2009,"4 - 5%","masakhwe.mayienga@fao.org",
+    "484","01510",2013,"37.11","alicia.english@fao.org",
+    "484","0113",2013,"46.87","alicia.english@fao.org",
+    "484","01234",2013,"17.78","alicia.english@fao.org",
+    "288","01316",2010,"2.3-6","alicia.english@fao.org",
+    "288","0112",1987,"10.7 - 31.1","x.noemail@fao.org",
+    "204","01651",2009,"6.2","x.noemail@fao.org",
+    "646","01318",2009,"20","x.noemail@fao.org",
+    "646","01234",2009,"6","x.noemail@fao.org",
+    "204","01234",2009,"27.5","x.noemail@fao.org",
+    "410","0111",2014,"11","alicia.english@fao.org",
+    "566","0112",2013,"8.5","x.noemail@fao.org",
+    "360","01354",2010,"30%","alicia.english@fao.org",
+    "204","01219.90",2010,"17.3-47","alicia.english@fao.org",
+    "484","01251",2013,"19.01","alicia.english@fao.org",
+    "404","0112",2012,".2-.5","alicia.english@fao.org",
+    "454","0112",2011,"8.4-9.7","alicia.english@fao.org",
+    "288","01318",2010,"20-21.3","alicia.english@fao.org",
+    "204","01318",2010,"22","alicia.english@fao.org",
+    "646","01199",2009,"7.5","x.noemail@fao.org",
+    "204","01234",2009,"26.4","x.noemail@fao.org",
+    "646","01234",2009,"12.5","x.noemail@fao.org",
+    "204","01651",2009,"8","x.noemail@fao.org",
+    "288","01212",2009,"45","x.noemail@fao.org",
+    "694","21",2010,"20","alicia.english@fao.org",
+    "646","01312",2009,"35.1","x.noemail@fao.org",
+    "694","01640",2010,"20-25","alicia.english@fao.org",
+    "204","01323",2010,"5.0-15","alicia.english@fao.org",
+    "484","0231",2013,"37.66","alicia.english@fao.org",
+    "360","012",2010,"30","alicia.english@fao.org",
+    "204","01234",2009,"28","x.noemail@fao.org",
+    "410","0112",2014,"15","",
+    "288","01253.01",2010,"5.5-18","alicia.english@fao.org",
+    "356","012",2010,"20-30","alicia.english@fao.org",
+    "484","21",2013,"54.07","alicia.english@fao.org",
+    "204","01323",2009,"15","x.noemail@fao.org",
+    "288","01234",2009,"25.1","x.noemail@fao.org",
+    "288","01316",2009,"2.3","x.noemail@fao.org",
+    "204","01219.90",2010,"17.3-79","alicia.english@fao.org",
+    "404","012",2010,"25","alicia.english@fao.org",
+    "404","01312",2010,"40","alicia.english@fao.org",
+    "694","012",2010,"5","alicia.english@fao.org",
+    "356","01510",2010,"19-28","alicia.english@fao.org",
+    "204","01219.90",2010,"89.35","alicia.english@fao.org",
+    "204","01234",2009,"27.5","x.noemail@fao.org",
+    "288","21",2008,"2.56-6.66","alicia.english@fao.org",
+    "288","01233",2009,"2","x.noemail@fao.org",
+    "404","0112",2012,"3","alicia.english@fao.org",
+    "288","01234",2010,"50.5","x.noemail@fao.org",
+    "566","0112",2013,"2","x.noemail@fao.org",
+    "484","02211",2013,"37.14","alicia.english@fao.org",
+    "288","01234",2010,"10.5-23","alicia.english@fao.org",
+    "288","01313",2010,"21","alicia.english@fao.org",
+    "694","0113",2010,"8","alicia.english@fao.org",
+    "204","01199",2009,"47","x.noemail@fao.org",
+    "204","01651",2009,"7","x.noemail@fao.org",
+    "288","21",2008,"1.7 - 2.5","alicia.english@fao.org",
+    "288","01212",2009,"13","x.noemail@fao.org",
+    "288","01212",2009,"32","x.noemail@fao.org",
+    "288","01234",2009,"23","x.noemail@fao.org",
+    "566","0112",2013,"2","x.noemail@fao.org",
+    "404","01312",2012,".1-2.5","alicia.english@fao.org",
+    "404","01312",2012,"3","alicia.english@fao.org",
+    "204","01253.01",2010,"6.0-50","alicia.english@fao.org",
+    "288","01239.01",2010,"6.3-15","alicia.english@fao.org",
+    "834","21",1996,"1.1","",
+    "484","01316",2013,"54.54","alicia.english@fao.org",
+    "694","0113",2010,"6.2","alicia.english@fao.org",
+    "204","01199",2009,"11","alicia.english@fao.org",
+    "356","01316",2009,"4.5 - 7%","masakhwe.mayienga@fao.org",
+    "356","01316",2009,"3 - 5%","masakhwe.mayienga@fao.org",
+    "356","01213",2010,"31-40","alicia.english@fao.org",
+    "818","012",2010,"30","alicia.english@fao.org",
+    "566","0112",2013,"1","x.noemail@fao.org",
+    "356","01234",2010,"15-20","alicia.english@fao.org",
+    "646","01318",2009,"11.8","x.noemail@fao.org",
+    "646","01312",2009,"19","x.noemail@fao.org",
+    "204","01199",2009,"17.3","x.noemail@fao.org",
+    "288","01233",2009,"13.9","x.noemail@fao.org",
+    "288","01239.01",2009,"15","x.noemail@fao.org",
+    "288","01316",2010,".4-10.4","alicia.english@fao.org",
+    "404","0112",2012,".2-2.4","alicia.english@fao.org",
+    "410","0113",2014,"8","",
+    "410","0113",2014,"13","",
+    "288","01212",2010,"5.0-45","alicia.english@fao.org",
+    "204","01651",2010,"5.9-15","alicia.english@fao.org",
+    "288","01318",2010,"6.7-12.5","alicia.english@fao.org",
+    "566","0112",2013,"2.8","x.noemail@fao.org",
+    "204","01199",2009,"34.5","x.noemail@fao.org",
+    "356","01239.01",2010,"1.5-7","alicia.english@fao.org",
+    "356","012",2010,"20","alicia.english@fao.org",
+    "288","01233",2009,"11.3","x.noemail@fao.org",
+    "288","01233",2009,"19","x.noemail@fao.org",
+    "288","01239.01",2009,"16.6","x.noemail@fao.org",
+    "410","0113",2014,"16","",
+    "410","0115",2014,"24","alicia.english@fao.org",
+    "484","01235",2013,"14.65","alicia.english@fao.org",
+    "484","01651",2013,"45.46","alicia.english@fao.org",
+    "646","01318",2009,"2","x.noemail@fao.org",
+    "646","01318",2009,"2.9","x.noemail@fao.org",
+    "204","01199",2009,"79","x.noemail@fao.org",
+    "288","21",2008,"0 - 1.4","alicia.english@fao.org",
+    "288","01239.01",2009,"4.5","x.noemail@fao.org",
+    "288","01316",2009,"1","x.noemail@fao.org",
+    "484","21113.01",2013,"40.91","alicia.english@fao.org",
+    "288","01233",2010,"2.0-19","alicia.english@fao.org",
+    "288","01706",1996,"3.7-4.3","x.noemail@fao.org",
+    "484","01701",2013,"24.96","alicia.english@fao.org",
+    "834","21",1996,"2","",
+    "204","01323",2009,"16.4","x.noemail@fao.org",
+    "204","01651",2009,"15","x.noemail@fao.org",
+    "288","01212",2009,"5","x.noemail@fao.org",
+    "288","01233",2009,"22","x.noemail@fao.org",
+    "288","01239.01",2009,"6","",
+    "404","0112",2012,"0.04","alicia.english@fao.org",
+    "410","0111",2014,"14","",
+    "410","0111",2014,"15","",
+    "410","0112",2014,"11","",
+    "202","0112",2011,"1.4-5.9","",
+    "646","01318",2009,"10.4","x.noemail@fao.org",
+    "356","01234",2010,"3.64-4.75","alicia.english@fao.org",
+    "204","01323",2009,"10.9","x.noemail@fao.org",
+    "646","01318",2009,"21","x.noemail@fao.org",
+    "404","0112",2012,"10.7","alicia.english@fao.org",
+    "288","01316",2010,"1.0-8","alicia.english@fao.org",
+    "404","012",2010,"30","alicia.english@fao.org",
+    "646","01199",2009,"2","x.noemail@fao.org",
+    "356","01239.01",2010,"2.0-5","alicia.english@fao.org",
+    "646","01312",2009,"25","x.noemail@fao.org",
+    "288","01212",2009,"28.1","x.noemail@fao.org",
+    "288","01234",2009,"21.5","x.noemail@fao.org",
+    "404","0112",2012,".7-6.7","alicia.english@fao.org",
+    "404","0112",2012,"0.04","alicia.english@fao.org",
+    "410","0113",2014,"14","",
+    "410","0113",2014,"15","",
+    "404","0112",2012,".2-1.6","alicia.english@fao.org",
+    "484","01317",2013,"22.8","alicia.english@fao.org",
+    "288","01233",2010,"0-16.2","alicia.english@fao.org",
+    "204","01234",2009,"21.2","x.noemail@fao.org",
+    "288","01212",2009,"54","x.noemail@fao.org",
+    "288","01316",2009,"6","x.noemail@fao.org",
+    "410","0111",2014,"24","alicia.english@fao.org",
+    "202","0112",2011,"8","",
+    "356","01359",2010,"20-30","alicia.english@fao.org",
+    "404","01312",2012,".6-3","alicia.english@fao.org",
+    "288","01239.01",2010,"0.34","x.noemail@fao.org",
+    "646","01199",2009,"18.5","x.noemail@fao.org",
+    "646","01234",2009,"7","x.noemail@fao.org",
+    "288","01234",2010,"23","alicia.english@fao.org",
+    "288","01706",1996,"50-100","x.noemail@fao.org",
+    "288","01706",1997,"8.0-21","alicia.english@fao.org",
+    "800","0112",2017,"3.3%","alicia.english@fao.org",
+    "356","01316",2009,"2 - 4%","masakhwe.mayienga@fao.org",
+    "484","01252",2013,"21.35","alicia.english@fao.org",
+    "694","012",2010,"20","alicia.english@fao.org",
+    "484","01234",2013,"28.86","alicia.english@fao.org",
+    "484","01313",2013,"53.76","alicia.english@fao.org",
+    "288","01253.01",2010,"0-6.5","alicia.english@fao.org",
+    "484","2349",2013,"45.31","alicia.english@fao.org",
+    "288","01234",2010,"35.5","x.noemail@fao.org",
+    "356","01319",2010,"32-48","alicia.english@fao.org",
+    "484","21",2013,"23.43","alicia.english@fao.org",
+    "288","01233",2009,"9.5","x.noemail@fao.org",
+    "410","0112",2014,"18","",
+    "204","01234",2009,"23","x.noemail@fao.org",
+    "694","0113",2010,"5","alicia.english@fao.org",
+    "204","01323",2010,"10.9-51","alicia.english@fao.org",
+    "288","01234",2010,"14-21.5","alicia.english@fao.org",
+    "694","0113",2010,"6.6","alicia.english@fao.org",
+    "204","01323",2009,"33","x.noemail@fao.org",
+    "410","0113",2014,"10","",
+    "288","01651",2010,"13-18.1","alicia.english@fao.org",
+    "484","01253.01",2013,"32.08","alicia.english@fao.org",
+    "404","0112",2012,"1","alicia.english@fao.org",
+    "566","0112",2013,"8.5","x.noemail@fao.org",
+    "646","01199",2009,"25","x.noemail@fao.org",
+    "356","01253.01",2010,"23-32","alicia.english@fao.org",
+    "646","01312",2009,"30.1","x.noemail@fao.org",
+    "646","01199",2009,"12.5","x.noemail@fao.org",
+    "288","01212",2009,"6.5","x.noemail@fao.org",
+    "288","01239.01",2010,"2.3","alicia.english@fao.org",
+    "410","0113",2014,"14","",
+    "410","0115",2014,"11","",
+    "204","01651",2010,"6.2-18","alicia.english@fao.org",
+    "404","21",2012,"6","alicia.english@fao.org",
+    "356","01316",2010,"5.0-10","alicia.english@fao.org",
+    "356","01234",2010,"3.94-5.54","alicia.english@fao.org",
+    "288","01212",2010,"23-53","alicia.english@fao.org",
+    "288","01318",2010,"26.3-28","alicia.english@fao.org"))
+
+
+
+
+
+############# Computation Parameters #####################################
+savesws <- TRUE
+maxYear <- format(Sys.Date(), "%Y")
+
+
+ctry_modelvar <- 'All'
+updatemodel <- TRUE
+# updatemodel <- swsContext.computationParams$updateModel
+subnationalestimates <- TRUE
+#lossDataset <- swsContext.datasets[[1]]@dataset
+
+domain_loss = "Loss and Waste"
+dataset_loss = "loss_sdg"
+
+message("Updatemodel: ", updatemodel)
+message("Subnationalestimates: ", subnationalestimates)
+message('SelectedYear: ', paste(selectedYear, collapse = ', '))
+
+flwdb <- "flw_lossperfactors__20250506_solr"
+# flwdb <- swsContext.computationParams$flwdb
+flwdb_name <- gsub('flw_lossperfactors__', '',flwdb)
+if(as.numeric(substr(flwdb_name, 1, 4)) < 2024){
+    
+    # These are all the potential tags on the SUbnational Estimates
+    # selecting data collection methods for aggregating the subnational estimates are
+    # based on those that will give the best range of representative data
+    # DataCollectionTags_all <- c("Expert Opinion", "-", "SWS", "NationalStatsYearbook",
+    #                             "NonProtected", "Survey", "Rapid Assessment", "NationalAcctSys",
+    #                             "WRI Protocol", "FBS/APQ", "LitReview", "Case Study",
+    #                             "APHLIS", "NP", "Laboratory Trials", "Modelled",
+    #                             "Field Trial", "Crop Cutting Field Experiment", "Census",
+    #                             "No Data Collection Specified")
+    # 
+    DataCollectionTags_represent <- c("Expert Opinion", "-", "SWS", "NationalStatsYearbook",
+                                      "NonProtected", "Survey", "NationalAcctSys",
+                                      "WRI Protocol", "FBS/APQ", "LitReview", "Case Study",
+                                      "APHLIS", "NP", "Laboratory Trials", "Modelled", "Census",
+                                      "No Data Collection Specified")
+} else {
+    
+    DataCollectionTags_represent <- c("Literature Review", 
+                                      "Case Study",                  
+                                      "Survey",
+                                      "No Data Collection Specified",
+                                      #  "Controlled Experiment",
+                                      "Modelled Estimates",
+                                      "National Accounts",
+                                      "Expert Opinion",              
+                                      "",
+                                      "FLW Protocol",                
+                                      "Census",
+                                      "Modelled estimates")
+}
+
+ExternalDataOpt <- DataCollectionTags_represent
+
+# Order in the target dataset
+cols_order <- c("geographicAreaM49", "measuredElementSuaFbs",
+                "measuredItemSuaFbs", "timePointYears", "Value",
+                "flagObservationStatus", "flagMethod")
+
+# Overall Lower and Upper bounds
+LB <- 0.02
+UB <- 0.65
+
+# Flags for estimates
+estflag <- c( "I;ec", "I;m", "I;es", "I;e", "I;i", "I;esr", "I;ecr") # CHA: Added 'I;i' to estimated flags 
+
+# For aggregating the subnational using the markov function,
+# at present there is only the option for averaging the
+# subnational estimates by stage. but could be altered in the
+# future to model subnational-stages as functions
+MarkovOpt <- "aveatFSP" # "model"
+
+## This option is how the clusters are arranged. At the moment the best performing cluster was based on FBS Food Groups for estimation
+## This is not an option for the SWS user for consistency of estimates, should only be used to test the differences in estimates
+HierarchicalCluster <- "foodgroupname" # "isocode", "SDG.Regions"
+
+############### Connection to the SWS ###########################################
+
+areaVar <- "geographicAreaM49"
+yearVar <- "timePointYears"
+itemVar <- "measuredItemCPC"
+elementVar <- "measuredElement"
+valuePrefix <- "Value_"
+flagObsPrefix <- "flagObservationStatus_"
+flagMethodPrefix <- "flagMethod_"
+
+keys <- c(areaVar, yearVar, itemVar)
+keys_lower <- tolower(keys)
+keys2 <- c(areaVar, itemVar)
+
+##### Load Data ######
+
+#####  Collects the data from the SWS #####
+
+message('FL model: Load and prepare data tables')
+
+FAOCrops     <- ReadDatatable("fcl2cpc_ver_2_1")
+
+ConvFactor1  <- ReadDatatable(flwdb, readOnly = T)
+
+ConvFactor1[ , geographicaream49 := as.numeric(geographicaream49)]
+ConvFactor1[ , geographicaream49 := as.character(geographicaream49)]
+# XXX 2023-02-22
+ConvFactor1 <- ConvFactor1[!(country == 'Mexico' & crop %in% c("Meat of cattle with the bone, fresh or chilled", "Meat of pig with the bone, fresh or chilled", "Raw milk of cattle"))]
+# RAPID ASSESSMENT FIX
+ConvFactor1 <- ConvFactor1[!unique(rapid_ass), on = names(rapid_ass)] # Reinserted
+
+
+CountryGroup <- ReadDatatable("a2017regionalgroupings_sdg_feb2017")
+
+CountryGroup[, geographicaream49 := m49_code]
+CountryGroup[, country := tolower(m49_region)]
+
+FAOCrops[, crop := description]
+FAOCrops[, measureditemcpc := cpc] #FAOCrops[, measureditemcpc := addHeadingsCPC(cpc)]
+
+# There are 3 FCL codes going to 0112!
+# This can create duplicates, so removing the ones not to consider (series are not in use anymore)  
+# This is the only case an FCL points to more than one CPC.
+FAOCrops <- FAOCrops[!fcl %in% c('0067', '0068')]
+
+# CHA: 'append2tree' object contains elements that are missing from the tree
+# this happens because the tree contains the lower level of the CPC 
+# (e.g. 01241 is not in the tree beacuse only 01241.01 and 01241.90 are)
+# these elements end up being wrogly excluded in calculations 
+fbsTree      <- ReadDatatable("gfli_basket_cpc_article_2018", readOnly = T) # 456 5 var
+
+# Using here fbsTree1 as it has slight differences wrt fbsTree, as used
+# inside the lossModel functions (global and country).
+# TODO: Probably the two should be made a single object.
+fbsTree1 <- copy(fbsTree)
+
+fbsTree1[, GFLI_Basket := NA_character_]
+fbsTree1[foodgroupname %in% c(2905), GFLI_Basket := 'Cereals']
+fbsTree1[foodgroupname %in% c(2911), GFLI_Basket := 'Pulses']
+fbsTree1[foodgroupname %in% c(2919,2918), GFLI_Basket := 'Fruits & Vegetables']
+fbsTree1[foodgroupname %in% c(2907,2913), GFLI_Basket := 'Roots, Tubers & Oil-Bearing Crops'] # 2913 Oilseeds
+fbsTree1[foodgroupname %in% c(2914,2908,2909,2912,2922,2923), GFLI_Basket := 'Other']
+fbsTree1[foodgroupname %in% c(2943, 2946,2945), GFLI_Basket := 'Animals Products & Fish and fish products'] # ,2948 Change, put dairy with Eggs
+# XXX: For country model this is eggs, for global it is animal products...
+fbsTree1[foodgroupname %in% c(2949, 2948), GFLI_Basket := 'Eggs & Dairy'] # Modified from Eggs to Eggs & Dairy adding 2948
+#fbsTree1[foodgroupname %in% c(2943, 2946,2945,2949,2948), GFLI_Basket :='Fish',] #Fish needs to be included after it has losses in the SWS
+
+
+library(magrittr)
+library(readxl)
+
+CropCalendar  <- ReadDatatable("crop_calendar_nov17")
+
+
+if (COMPLETE_COUNTRYGROUPS == TRUE) {
+    CountryGroup_fix <- CountryGroup[isocode == 'CHN']
+    CountryGroup_fix[, c("m49_code", "iso2code", "isocode", "m49_region", "geographicaream49", "country") := 
+                         list("158", "TW", "TWN", "Taiwan", "158", "taiwan")]
+    CountryGroup <- rbind(CountryGroup, CountryGroup_fix)
+}
+
+
+if (COMPLETE_CROPCALENDAR == TRUE) {
+    CropCalendar[geographicaream49 == '156', geographicaream49 := '1248']
+    CropCalendar[, geographicaream49 := as.integer(geographicaream49)]
+    CropCalendar <- CropCalendar[, c("geographicaream49", "measureditemcpc","crop", "harvesting_month_onset", "harvesting_month_end"), with = FALSE]
+    CropCalendar <- CropCalendar[!grepl(' ', measureditemcpc)]
+    # CropCalendar[, measureditemcpc := addHeadingsCPC(measureditemcpc)]
+    CropCalendar[, crop := tolower(crop)]
+    
+    # TWN has no crop calendar, assigning CHN
+    CropCalendar <-
+        rbind(
+            CropCalendar,
+            # It's either 156 OR 1248
+            CropCalendar[geographicaream49 %in% c(156L, 1248L), .(geographicaream49 = 158L, measureditemcpc, crop, harvesting_month_onset, harvesting_month_end)]
+        )
+    
+    # NZ has no crop calendar, assigning AUS
+    CropCalendar <-
+        rbind(
+            CropCalendar,
+            CropCalendar[geographicaream49 == 36L, .(geographicaream49 = 554L, measureditemcpc, crop, harvesting_month_onset, harvesting_month_end)]
+        )
+    
+    # Fiji has no crop calendar, assigning AUS
+    CropCalendar <-
+        rbind(
+            CropCalendar,
+            CropCalendar[geographicaream49 == 36L, .(geographicaream49 = 242L, measureditemcpc, crop, harvesting_month_onset, harvesting_month_end)]
+        )
+    
+    # Jamaica has no crop calendar, assigning Dominican Rep.
+    CropCalendar <-
+        rbind(
+            CropCalendar,
+            CropCalendar[geographicaream49 == 214L, .(geographicaream49 = 388L, measureditemcpc, crop, harvesting_month_onset, harvesting_month_end)]
+        )
+    
+    # UAE has no crop calendar, assigning Saudi Arabia
+    CropCalendar <-
+        rbind(
+            CropCalendar,
+            CropCalendar[geographicaream49 == 682L, .(geographicaream49 = 784L, measureditemcpc, crop, harvesting_month_onset, harvesting_month_end)]
+        )
+    
+    # Belize has no crop calendar, assigning Guatemala
+    CropCalendar <-
+        rbind(
+            CropCalendar,
+            CropCalendar[geographicaream49 == 320L, .(geographicaream49 = 84L, measureditemcpc, crop, harvesting_month_onset, harvesting_month_end)]
+        )
+}
+
+# # Set China to 1248
+# CountryGroup[m49_code == '156', m49_code := '1248']
+# CountryGroup[geographicaream49 == '156', geographicaream49 := '1248']
+# CropCalendar[geographicaream49 == '156', geographicaream49 := '1248']
+
+#save(CropCalendar, file.path(save_dir, "CropCalendar2.RData"))
+
+###### ----- Start pulling datasets ---- #####
+
+
+message('FL model: Pull datasets')
+
+countriesNotToInclude <- c("831", "832", "274") # Guersney, Jersey, Gaza
+faostatcountriesNotToInclude <- c("76") # Sudan
+areaList <- GetCodeList('aproduction', 'aproduction', 'geographicAreaM49')[type == 'country' & !code %in% countriesNotToInclude, code]
+faostatcountryList <- GetCodeList("faostat_one", "updated_sua_2013_data", "geographicAreaFS")[!code %in% faostatcountriesNotToInclude,code]
+FbsSuaList <- GetCodeList('suafbs', 'sua_balanced', 'measuredItemFbsSua')[,code]
+itemList <- GetCodeList('aproduction', 'aproduction', 'measuredItemCPC')[code %in% FbsSuaList, code]
+faostatitemList <- GetCodeList("faostat_one", "updated_sua_2013_data", "measuredItemFS")[,code]
+
+startYearNewMethodology_value <- '2010'
+# Get production data the 'startYearNewMethodology' is to keep up with FSB revision 
+if(!exists("production")) production <-  getProductionData_new(areaList = areaList, itemList = itemList, elementList = "5510",
+                                                               faostatcountryList = faostatcountryList,
+                                                               faostatitemList = faostatitemList,
+                                                               selectedYear = selectedYear, 
+                                                               startYearNewMethodology = startYearNewMethodology_value)
+
+stopifnot(nrow(production) > 0)
+setnames(production, "Value", "value_measuredelement_5510")
+setnames(production, tolower(names(production)))
+production[, geographicaream49 := as.character(geographicaream49)]
+production[, timepointyears := as.numeric(timepointyears)]
+
+# Get import data
+if(!exists("imports")) imports <- getImportData_new(areaList,itemList, elementList = "5610", selectedYear)
+
+stopifnot(nrow(imports) > 0)
+setnames(imports, "Value", "value_measuredelement_5610")
+setnames(imports, tolower(names(imports)))
+imports[, timepointyears := as.numeric(timepointyears)]
+
+# Get loss data from SUA balanced
+lossProtectedSUA <- getLossData_SUA(areaList,itemList, elementList = "5016",
+                                    faostatcountryList, faostatitemList,
+                                    selectedYear, startYearNewMethodology = as.numeric(startYearNewMethodology_value), protected = TRUE)
+
+### Added 28/08/2021
+lossProtectedAP <- getLossData_AP(areaList,itemList, elementList = "5016",
+                                  selectedYear, protected = TRUE)
+
+
+lp <- merge(lossProtectedSUA[flagObservationStatus != 'M'], 
+            lossProtectedAP[flagObservationStatus != 'M'], by = c(keys, 'measuredElement'), suffixes = c('SUA', 'AP'),
+            all = T)
+
+# Try to get the maximum number of loss data as sometimes they are only in one of the two datasets (SUA or AP)
+lp[ValueSUA == ValueAP, check := 'compliant']
+lp[ValueSUA != ValueAP, check := 'AP data changed']
+lp[is.na(ValueSUA) & !is.na(ValueAP), check := 'Only in AP']
+lp[!is.na(ValueSUA) & is.na(ValueAP), check := 'Only in SUA']
+lp[check == 'AP data changed', ValueAP := round(ValueAP)]
+lp[ValueSUA == ValueAP, check := 'compliant']
+lp[ValueSUA != ValueAP, check := 'AP data changed']
+lp[check == 'AP data changed', ValueSUA := round(ValueSUA)]
+lp[ValueSUA == ValueAP, check := 'compliant']
+lp[ValueSUA != ValueAP, check := 'AP data changed']
+
+lp[check == 'Only in AP', c('Value', 'flagObservationStatus', 'flagMethod' ,"datasource") := list(ValueAP,
+                                                                                                  flagObservationStatusAP,
+                                                                                                  flagMethodAP,"AP")]
+lp[check == 'Only in SUA',c('Value', 'flagObservationStatus', 'flagMethod',"datasource") := list(ValueSUA,
+                                                                                                 flagObservationStatusSUA,
+                                                                                                 flagMethodSUA,"SUA")]
+lp[check == 'compliant', c('Value', 'flagObservationStatus', 'flagMethod',"datasource") := list(ValueAP,
+                                                                                                flagObservationStatusAP,
+                                                                                                flagMethodAP,"AP&SUA")]
+lp[check == 'AP data changed', c('Value', 'flagObservationStatus', 'flagMethod',"datasource") := list(ValueAP,
+                                                                                                      flagObservationStatusAP,
+                                                                                                      flagMethodAP,"AP")]
+
+# If loss data in AP changed before the startYearNewMethodology the changes must be reflected
+# in the production data, i.e. ratios must be calculated with consistent datasets either both from old faostat methodology
+# or both from the new data
+APupd <- lp[check == 'AP data changed' & timePointYears < startYearNewMethodology_value]
+
+lp[, c("ValueSUA", "flagObservationStatusSUA", "flagMethodSUA",
+       "flagCombinationSUA", "ValueAP", "flagObservationStatusAP",
+       "flagMethodAP", "flagCombinationAP", "check")] <- NULL
+
+lossProtected <- copy(lp)
+
+if(nrow(APupd)>0){
+    productionKey = DatasetKey(
+        domain = "agriculture",
+        dataset = "aproduction",
+        dimensions = list(
+            Dimension(name = "geographicAreaM49",
+                      keys = unique(as.character(APupd$geographicAreaM49))),
+            Dimension(name = "measuredElement", keys = '5510'),
+            Dimension(name = "timePointYears", keys = as.character(unique(APupd$timePointYears))),
+            Dimension(name = "measuredItemCPC",
+                      keys = unique(APupd$measuredItemCPC)))
+    )
+    
+    productionUpdt = GetData(
+        key = productionKey,
+        flags = TRUE)
+    
+    productionUpdt[, timePointYears := as.numeric(timePointYears)]
+    productionUpdt[, geographicAreaM49 := as.numeric(geographicAreaM49)]
+    
+    productionUpdt <- productionUpdt[APupd[, keys, with = F], on = keys]
+    names(productionUpdt) <- tolower(names(productionUpdt))
+    setnames(productionUpdt, 'value', 'value_measuredelement_5510')
+    productionUpdt[, geographicaream49 := as.character(geographicaream49)]
+    production <- rbind(production[!productionUpdt, on = keys_lower ], productionUpdt)
+}
+
+### end addition
+
+stopifnot(nrow(lossProtected) > 0)
+
+lossProtected[, value_measuredelement_5126 := 0]
+setnames(lossProtected, "Value", "value_measuredelement_5016")
+setnames(lossProtected, tolower(names(lossProtected)))
+
+# Combine Production and import data
+prod_imports <- merge(production, imports, by = keys_lower, all.x = TRUE)
+prod_imports[, prod_imports := rowSums_(.SD), .SDcols = c("value_measuredelement_5510", "value_measuredelement_5610")]
+prod_imports <- prod_imports[, c(keys_lower, "value_measuredelement_5510", "value_measuredelement_5610", "prod_imports"), with = FALSE]
+
+lossProtected[, geographicaream49 := as.character(geographicaream49)]
+lossProtected[, timepointyears := as.numeric(timepointyears)]
+
+# Do not consider 'Wine' and live animals
+lossProtected <- lossProtected[ measureditemcpc !=  '24212.02']
+meatcodes <- unique(lossProtected$measureditemcpc[grepl('021', lossProtected$measureditemcpc)])
+lossProtected <- lossProtected[! measureditemcpc %in% meatcodes]
+prod_imports <-prod_imports[! measureditemcpc %in% meatcodes]
+prod_imports <- prod_imports[ measureditemcpc !=  '24212.02']
+
+
+lossData <- merge(prod_imports, lossProtected, by = keys_lower, all.y = TRUE)
+lossData[, loss_per_clean := value_measuredelement_5016/value_measuredelement_5510]
+lossData[, loss_per_clean_pi := value_measuredelement_5016/prod_imports]
+lossData[, per_diff := loss_per_clean - loss_per_clean_pi]
+lossData[, value_measuredelement_5126 := loss_per_clean]
+
+### Some countries are import dependent and protected losses are over 100%,
+### therefore % should be applied to both production + imports
+
+# Import dependent ratio
+# IDR = (Imports-Exports)/(Production+Imports-Exports)
+
+comodities <-
+    lossData[
+        per_diff > 0.1,
+        c("geographicaream49", "measureditemcpc", "value_measuredelement_5016",
+          "prod_imports", "loss_per_clean", "loss_per_clean_pi", "per_diff"),
+        with = FALSE
+    ]
+
+comodities[, combp := paste(geographicaream49, measureditemcpc, sep = ";")]
+
+#save(prod_imports_input,comodities_input,file="production_inputs.RData")
+
+
+lossData[, fsc_location := "SWS"]
+
+for (t in unique(comodities$geographicaream49)) {
+    for(i in unique(comodities[geographicaream49 == t]$measureditemcpc)) {
+        lossData[
+            geographicaream49 == t & measureditemcpc == i,
+            `:=`(
+                value_measuredelement_5126 = loss_per_clean_pi,
+                fsc_location = "SWS;Prod_imp"
+            )
+        ]
+    }
+}
+
+
+## Some commodities still produce greater than 100 % losses
+lossData[value_measuredelement_5126 > 1, value_measuredelement_5126 := 0]
+
+setnames(lossData, tolower(names(lossData)))
+
+lossData <-
+    merge(
+        lossData,
+        CountryGroup[, c("isocode", "geographicaream49", "country"), with = FALSE],
+        by = "geographicaream49",
+        all.x = TRUE
+    )
+
+lossData[, loss_per_clean := value_measuredelement_5126]
+
+
+
+lossData <-
+    lossData[,
+             c(keys_lower, "isocode", "country", "loss_per_clean",
+               "fsc_location", "flagobservationstatus", "flagmethod"),
+             with = FALSE
+    ]
+
+message("Number of lossData available: ", nrow(lossData))
+#message("Number of losses to estimate: ", nrow(timeSeriesDataToBeImputed[is.na(protected)]))
+
+
+message('FL model: Work on literature data')
+
+
+lossData <- lossData[measureditemcpc %in% fbsTree$measureditemcpc]
+
+
+# 27/09/21 remove E,f and imp dep lower than LB
+
+lossData <- lossData[flagobservationstatus != 'E']
+lossData[fsc_location == 'SWS;Prod_imp' & loss_per_clean < LB, loss_per_clean := NA]
+lossData <- lossData[!is.na(loss_per_clean)]
+
+
+
+#timeSeriesDataToBeImputed <- timeSeriesDataToBeImputed[measureditemcpc %in% fbsTree$measureditemcpc]
+
+# No data 21 as most of them are for Fish
+ConvFactor1 <- ConvFactor1[measureditemcpc != '21']
+### end addition
+
+#ConvFactor1  <- ReadDatatable('flw_lossperfactors__20210828_provisional', readOnly = T)
+# Remove 278 Germany New Lander, 280 Germany Fed. Rep. of, 530, 582 Pacific Islands Trust Tr 
+
+### Added 5 August
+ConvFactor1[ fsc_location %in% c('Export','Market', 'Distribution', 'Post-harvest', 
+                                 'Collector', 'Packing', 'Grading', 'Stacking'), .N]
+#ConvFactor1[fsc_location == 'Export', fsc_location := 'Storage']
+ConvFactor1[fsc_location == 'Market', fsc_location := 'Storage']
+ConvFactor1[fsc_location == 'Distribution', fsc_location := 'Wholesale']
+ConvFactor1[fsc_location == 'Post-harvest', fsc_location := 'Farm']
+ConvFactor1[fsc_location == 'Collector',fsc_location := 'Trader']
+ConvFactor1[fsc_location == 'Packing',fsc_location := 'Processing']
+ConvFactor1[fsc_location == 'Grading',fsc_location := 'Farm']
+ConvFactor1[fsc_location == 'Stacking',fsc_location := 'Farm']
+### End addition
+
+lossData[geographicaream49 %in% c("278", "280", "530", "582",
+                                  "474", # Martinique
+                                  "312", # Guadeloupe
+                                  "254", # French Guaiana
+                                  "638" # Reunion
+),]
+lossData <- lossData[!geographicaream49 %in% c("278", "280", "530", "582",
+                                               "474", # Martinique
+                                               "312", # Guadeloupe
+                                               "254", # French Guaiana
+                                               "638" # Reunion
+),]
+
+
+ConvFactor1[, geographicaream49 := sub("^0+", "", geographicaream49)]
+
+
+USretail <- ConvFactor1[geographicaream49 == '840' & fsc_location == 'Retail']
+ConvFactor1 <- ConvFactor1[!USretail, on = names(ConvFactor1)]
+#
+ConvFactor1[url == "https://www.ers.usda.gov/data-products/food-availability-per-capita-data-system/", fsc_location := 'whole supply chain']
+ConvFactor1[geographicaream49 == '156' & loss_per_clean >= 15, loss_per_clean := NA]
+
+########### Loss Factor Data and Aggregation ###################
+
+ConvFactor1[, fsc_location := tolower(fsc_location)] # Added to use new dt 'flw_lossperfactors__20200925'
+unique(ConvFactor1$fsc_location)[! unique(ConvFactor1$fsc_location) %in% c("farm", "transport", "storage", "trader", "wholesale", "processing", "wholesupplychain", "sws_total")]  
+ConvFactor1[fsc_location == "whole supply chain", fsc_location := "wholesupplychain"]
+unique(ConvFactor1$fsc_location)[! unique(ConvFactor1$fsc_location) %in% c("farm", "transport", "storage", "trader", "wholesale", "processing", "wholesupplychain", "sws_total")]  
+
+### Added 28/08/2021
+ConvFactor1[url == "http://www.bibliotheque.auf.org/doc_num.php?explnum_id=383", 
+            fsc_location := 'storage']
+### end addition
+
+ConvFactor1 <- ConvFactor1[measureditemcpc != '24212.02']
+ConvFactor1[geographicaream49 == '156', geographicaream49 := '1248']
+ConvFactor1[, loss_per_clean := loss_per_clean/100]
+ConvFactor1 <- ConvFactor1[!measureditemcpc %in% meatcodes]
+UBstage <- 0.25
+
+if(CLEAN_CONVFACTOR){
+    # Filters out the non-representative observations
+    ########################
+    # CHA: ignore sws_total in ConvFactor1 and put instead clean lossData
+    ########################
+    ConvFactor_clean <- ConvFactor1[fsc_location != 'sws_total']
+    ConvFactor_clean <- ConvFactor_clean[tag_datacollection != 'FBS/APQ']
+    # Set keys all columns
+    setkeyv(ConvFactor_clean, names(ConvFactor_clean))
+    # Exactly duplicated rows discarded and other incomplete rows
+    setkey(ConvFactor_clean)
+    CFdups <- ConvFactor_clean[duplicated(ConvFactor_clean)]
+    ConvFactor_clean <- ConvFactor_clean[!duplicated(ConvFactor_clean)]
+    ConvFactor_clean <- ConvFactor_clean[loss_per_clean > 0]
+    ConvFactor_clean <- ConvFactor_clean[!is.na(geographicaream49)]
+    ConvFactor_clean <- ConvFactor_clean[!is.na(timepointyears)]
+    ConvFactor_clean <- ConvFactor_clean[!is.na(measureditemcpc) & measureditemcpc != ""]
+    # ConvFactor_clean[country == 'United States Of America', country := 'United States of America']
+    # ConvFactor_clean[country == 'Timor Leste', country := 'Timor-Leste']
+    # ConvFactor_clean[country == 'Democratic Republic Of Congo', country := 'Democratic Republic of the Congo']
+    # ConvFactor_clean[country == 'China, Main', country := 'China']
+    # ConvFactor_clean[country == 'Austrailia', country := 'Australia']
+    # ConvFactor_clean[country == "Cote D'Ivoire", country := "Cote d'Ivoire"]
+    # ConvFactor_clean[country == "Côte d'Ivoire", country := "Cote d'Ivoire"]
+    # ConvFactor_clean[country == 'Tanzania', country := 'United Republic of Tanzania']
+    # 
+    ConvFactor_clean[country == 'Belize', geographicaream49 := '84']
+    ConvFactor_clean[country == 'Brazil', geographicaream49 := '76']
+    ConvFactor_clean[isocode == 'CRI', geographicaream49 := '188']
+    ConvFactor_clean[isocode == 'PAK', geographicaream49 := '586']
+    # 
+    # Maximum 25% loss per stage
+    ConvFactor_clean[fsc_location != "wholesupplychain" & loss_per_clean >= UBstage, loss_per_clean := NA]
+    # Lower Bound for WSC losses - 27/09/21
+    ConvFactor_clean[fsc_location == "wholesupplychain" & loss_per_clean < LB,loss_per_clean := NA]
+    #Added 07/10/21
+    ConvFactor_clean[fsc_location == "wholesupplychain" & loss_per_clean > UB,loss_per_clean := NA]
+    
+    ConvFactor_clean <- ConvFactor_clean[!is.na(loss_per_clean)]
+    
+    
+    ConvFactor_clean <- ConvFactor_clean[geographicaream49 %in% areaList]
+    ### Added 28/08/2021
+    ConvFactor_clean[measureditemcpc == '0146', measureditemcpc := '01460']
+    ConvFactor_clean[measureditemcpc == '01316.01', measureditemcpc := '01316']
+    ConvFactor_clean[measureditemcpc == '01316.02', measureditemcpc := '01316']
+    ConvFactor_clean[measureditemcpc == '21116i', measureditemcpc := '21116']
+    ConvFactor_clean[measureditemcpc == '21113', measureditemcpc := '21113.01']
+    ConvFactor_clean[measureditemcpc == '2112', measureditemcpc := '21121']
+    ConvFactor_clean[measureditemcpc == '0215', measureditemcpc := '21121'] 
+    ConvFactor_clean[measureditemcpc == '01709', measureditemcpc := '01709.90']
+    ConvFactor_clean[measureditemcpc == '022', measureditemcpc := '02211']
+    ConvFactor_clean[measureditemcpc == '0129', measureditemcpc := '01290.90']
+    # end addition
+    
+    ConvFactor_clean <- ConvFactor_clean[measureditemcpc %in% fbsTree1$measureditemcpc & loss_per_clean < 1]
+    
+    if(AGGREGATE_ACTIVITIES){
+        # Make sure same activities are labelled the same at least in APHLIS
+        ### ConvFactor_clean <- ConvFactor_clean[tag_datacollection == 'APHLIS' & activity == 'Threshing & Shelling', activity := 'Threshing/Shelling']
+        
+        # Location of inerest for the whole supply chain (needs to be added 'wholesupplychain' and 'sws_total')
+        loc2 <- c("farm","transport", "storage", "trader", "wholesale", "processing") #, "retail")
+        
+        # Observation not in location of interest
+        fscobs <- copy(ConvFactor_clean[!fsc_location %in% loc2, c(keys_lower, "isocode", "country", "loss_per_clean", 
+                                                                   "fsc_location", "activity","tag_datacollection", "url","solr_id"), with = FALSE])
+        # Observation in location of interest
+        activity0 <- copy(ConvFactor_clean[fsc_location %in% loc2 , c(keys_lower, "isocode", "country", "loss_per_clean", 
+                                                                      "fsc_location", "activity","tag_datacollection", "url","solr_id"), with = FALSE])
+        
+        # Separate rows where activities is specified or not
+        activity <- activity0[!activity %in% ("") ,]
+        wholeact <- activity0[activity %in% ("") ,]
+        
+        # Create object of unique stages
+        setkey(activity)
+        uniquestage <- unique(activity[,c("geographicaream49", "isocode", "country", "timepointyears", 
+                                          "measureditemcpc",  "fsc_location", "tag_datacollection", "url","solr_id"), with = F])
+        
+        # Start loop to aggregate activities
+        newactivity <- data.table()
+        
+        for(i in seq_len(uniquestage[,.N])){
+            subsact <- activity[uniquestage[i,], on = c("geographicaream49", "isocode", "country", "timepointyears", 
+                                                        "measureditemcpc",  "fsc_location", "tag_datacollection", "solr_id")]
+            
+            if(subsact[ , .N] > 1 & length(subsact$activity) == length(unique(subsact$activity))){ # More than one occurrence with all different activities
+                subsact[  , loss_per_clean := 1-prod(1- subsact$loss_per_clean)]
+                aggract <- unique(subsact[, c("geographicaream49", "isocode", "country", "timepointyears", "measureditemcpc",  "fsc_location", "loss_per_clean", "tag_datacollection", "url","solr_id"), with = F]) 
+            } else if(subsact[ , .N] > 1 & length(subsact$activity) != length(unique(subsact$activity))){ # More than one occurrence with duplicated activities
+                
+                subsact <- subsact[, loss_per_clean := mean_(loss_per_clean), activity]
+                setkey(subsact)
+                subsact <- unique(subsact)
+                
+                # Now, after averaging, aggregate activities if more than one
+                if(subsact[ , .N] > 1 & length(subsact$activity) == length(unique(subsact$activity))){ # More than one occurrence with all different activities
+                    subsact[  , loss_per_clean := 1-prod(1- subsact$loss_per_clean)]
+                    aggract <- unique(subsact[, c("geographicaream49", "isocode", "country", "timepointyears", "measureditemcpc",  "fsc_location", "loss_per_clean", "tag_datacollection", "url","solr_id"), with = F]) 
+                } else {
+                    aggract <- subsact[, c("geographicaream49", "isocode", "country", "timepointyears", "measureditemcpc",  "fsc_location", "loss_per_clean", "tag_datacollection", "url","solr_id"), with = F]
+                }
+                
+            } else {
+                aggract <- subsact[, c("geographicaream49", "isocode", "country", "timepointyears", "measureditemcpc",  "fsc_location", "loss_per_clean", "tag_datacollection", "url","solr_id"), with = F]
+            }
+            newactivity <- rbind(newactivity, aggract)
+        }
+        
+        # Check if overlaps and complete the dataset with observation with no activity specified
+        wholeact[,activity:=NULL]
+        
+        ## CHA: Possibility to merge 'no activity' and 'aggregated activity' figure, i.e:
+        ## If a figure has been calculated aggregating activities hence the figure
+        ## with no activity is discarded, e.g. APHLIS data should be treated like this.
+        ## Waiting for further discussion, to keep it simple and avoid further loss of row, 
+        ## data will be just bind for now
+        
+        # Maximum 20% loss per stage
+        newactivity[loss_per_clean >= UBstage, loss_per_clean := UBstage]
+        newactivity <- newactivity[!is.na(loss_per_clean)]
+        newconfact <- rbind(newactivity, wholeact)
+        
+        newconfact <-   rbind(newconfact, fscobs[ , activity := NULL])
+        newconfact[, country := tolower(country)]
+        
+    }else {
+        newconfact <- ConvFactor_clean
+        newconfact[, country := tolower(country)] 
+    }
+    
+    # Repeat Maximum 20% loss per stage, now winsoring
+    newconfact[fsc_location != "wholesupplychain" & loss_per_clean > UBstage, loss_per_clean := UBstage]
+    newconfact <- newconfact[!is.na(loss_per_clean)]
+    
+    # Add lower bound per stage 27/09/21
+    newconfact <- newconfact[loss_per_clean > 0.005]
+    
+    # Correct data and avoid inserting NAs or data below LB, NO MORE CHINA 1248!
+    lossData_clean <- copy(as.data.table(lossData[flagobservationstatus != 'M' &
+                                                      !is.na(loss_per_clean) & 
+                                                      loss_per_clean > LB & loss_per_clean < UB])) ### Added and removed 28/08/21  
+    
+    
+    lossData_clean[, fsc_location := 'sws_total']
+    lossData_clean[, tag_datacollection := 'SWS_2']
+    lossData_clean[geographicaream49 == '1248', geographicaream49 := '156']
+    
+    # ORS added url="SWS", solr_id="SWS"
+    lossData_clean$url <- "Statistical Working System"
+    lossData_clean$solr_id <- "Statistical Working System"
+    
+    ConvFactor1_clean <- rbind(newconfact, lossData_clean[, c("geographicaream49",
+                                                              "timepointyears",
+                                                              "measureditemcpc",
+                                                              "isocode",
+                                                              "country",
+                                                              "loss_per_clean",
+                                                              "fsc_location",
+                                                              "tag_datacollection","url","solr_id"), with = F], fill = TRUE)
+    
+    ConvFactor1_clean[geographicaream49 == '156', geographicaream49 := '1248']
+    
+    #ConvFactor1_clean[tag_datacollection == "Literature Review", tag_datacollection := "LitReview"]
+    #ConvFactor1_clean[tag_datacollection == "National Stats Yearbook", tag_datacollection := "NationalStatsYearbook"]
+    #ConvFactor1_clean[tag_datacollection == "", tag_datacollection := "-"]
+    
+    ### Added 28/08/2021
+    #ConvFactor1_clean[tag_datacollection == "Modelled Estimates", tag_datacollection := "Modelled"]
+    #ConvFactor1_clean[tag_datacollection == "No Data Collection Specified", tag_datacollection := "-"]
+    #ConvFactor1_clean[tag_datacollection == "National Accounts System", tag_datacollection := "NationalAcctSys"]
+    ### End addition
+    # ORS Added SWS below to keep for new model
+    ConvFactor2 <- ConvFactor1_clean[tag_datacollection %in% c(ExternalDataOpt,"SWS_2")] # CHA: substitute ConvFactor1
+    
+    ConvFactor2 <- ConvFactor2[!is.na(loss_per_clean)]
+    ConvFactor2 <- ConvFactor2[loss_per_clean < UB]
+    locations <- c("farm", "transport", "storage", "trader", "wholesale", "processing", "wholesupplychain", "sws_total") ## <>, "retail"
+    ConvFactor2 <- ConvFactor2[fsc_location %in% locations]
+    
+} else {
+    # Filters out the non-representative observations
+    ConvFactor2 <- ConvFactor1[tag_datacollection %in% ExternalDataOpt]
+    ConvFactor2 <- ConvFactor2[!is.na(loss_per_clean)]
+    ConvFactor2 <- ConvFactor2[loss_per_clean < UB]
+    ConvFactor2[geographicaream49 == '156', geographicaream49 := '1248']
+    locations <- c("farm", "transport", "storage", "trader", "wholesale", "processing", "wholesupplychain", "sws_total") ## <>, "retail"
+    ConvFactor2 <- ConvFactor2[fsc_location %in% locations]
+}
+
+##### Fix factors ----
+# XXX: Added 2023-02-22: loss of meat fo cattle in Peru seem way too high
+# to be a reliable factor. This will require more investigation by the
+# CLFS team. For now, removing.
+ConvFactor2 <- ConvFactor2[!(measureditemcpc == '21111.01' & geographicaream49 == 604)]
+
+
+setkey(ConvFactor2)
+ConvFactor2 <- unique(ConvFactor2)
+
+#--- Markov Chain ----
+
+message('FL model: Markov chain')
+
+## Runs the Markov Model to standardize estimates (RawData, opt, modelEst, selectedYear, CountryGroup, fbsTree)
+#CountryGroup
+ConvFactor2[,isocode := NULL]
+ConvFactor2 <- merge(ConvFactor2, CountryGroup[,.(geographicaream49, isocode)], by = 'geographicaream49', all.x = T)
+
+
+FullSet <- ConvFactor2
+
+setkey(FullSet)
+FullSet <- unique(FullSet)
+
+
+
+# CHA change function from join to merge
+FullSet <- merge(FullSet, FAOCrops[, c("measureditemcpc", "crop"), with = FALSE], by = "measureditemcpc", all.x = T)
+############################
+# FULLSET IS A PART OF MY TRAINING DATA
+############################
+
+save_dir <- file.path(R_SWS_SHARE_PATH, "Bayesian_food_loss", "Inputs")
+dir.create(save_dir, recursive = TRUE, showWarnings = FALSE)
+save(FAOCrops, file = file.path(save_dir, "FAOCrops.RData"))
+save(CropCalendar,file = file.path(save_dir, "CropCalendar.RData"))
 
 # Change spelling of meats & animal products.
 fbsTree1%<>%mutate(food_group=case_match(gfli_basket,
@@ -335,17 +1407,6 @@ final = dt[, .(
 
 final[]
 
-#Adding iso3 using the mapping datatable
-#m49_fs_iso_mapping = as.data.table(ReadDatatable("m49_fs_iso_mapping", readOnly = FALSE))
-# keep only rows that actually have an m49+iso3
-#map_iso3 = m49_fs_iso_mapping[
-#  !is.na(m49) & m49 != "" & !is.na(iso3) & iso3 != "",
-#  .(m49_country_code = as.character(m49), iso3)
-#]
-
-#keep unique (m49,iso3) pairs
-#map_iso3 = unique(map_iso3, by = c("m49_country_code", "iso3"))
-
 
 #Mapping M49 to iso3 using countrycode since the m49_fs_iso_mapping datatable is not updated.
 final_with_iso3 = copy(final)
@@ -476,7 +1537,7 @@ if (!all(req_gdp %in% names(DT_gdp))) {
 }
 
 GDP_full = DT_gdp[
-    isocode %in% M49$iso3 & year >= 1991,
+    isocode %in% M49$iso3 & year >= start_year,
     .(
         iso3 = as.character(isocode),
         year = as.numeric(year),
@@ -531,8 +1592,8 @@ if (!all(req_temp %in% names(DT_temp))) stop("temperature_bayesian must contain:
 if (!all(req_rain %in% names(DT_rain))) stop("rainfall_bayesian must contain: ", paste(req_rain, collapse=", "))
 
 # Filter to the modelling years 
-year_min = 1991
-year_max = 2024
+year_min = start_year
+year_max = end_year
 
 monthly_temp_data = as_tibble(
     DT_temp[
@@ -598,7 +1659,7 @@ if (!all(req_lpi %in% names(DT_lpi))) {
 }
 
 LPI_full = DT_lpi[
-    isocode %in% M49$iso3 & year >= 1991 & year <= 2024,
+    isocode %in% M49$iso3 & year >= start_year & year <= end_year,
     .(
         iso3   = as.character(isocode),
         year   = as.numeric(year),
@@ -611,6 +1672,7 @@ LPI_full = as_tibble(LPI_full) %>%
     left_join(select(M49, iso3, country), by = "iso3") %>%
     # (optional) keep GDP columns if you still use them for plotting
     left_join(select(GDP_full, iso3, year, GDP_percap, sm_GDP_percap), by = c("iso3","year"))
+
 # Plot smoothed LPI for each country.
 # pdf("LPI_fit.pdf",width=5,height=3.5)
 # for(i in 1:nrow(M49)){
@@ -626,18 +1688,14 @@ LPI_full = as_tibble(LPI_full) %>%
 # Prepare model training data ---------------------------------------------
 
 # Set up the model training data frame.
-# Keep weather covariate values for comparison with the new ones.
-model_data <- Data_Use_train0%>%select(geographicaream49,timepointyears,measureditemcpc,
-                                       fsc_location,loss_per_clean,tag_datacollection,
-                                       foodgroupname,basket_sofa_wu,
-                                       temperature_c,temperature_mean,
-                                       rainfall_mm,rainfall_mean,url,solr_id)%>%
+model_data <- FullSet%>%select(geographicaream49,timepointyears,measureditemcpc,
+                               fsc_location,loss_per_clean,tag_datacollection,
+                               url,solr_id)%>%
     left_join(select(fbsTree1,measureditemcpc,gfli_basket,food_group))%>%#,store_min,store_max,requires_fridge,perish_class,perish_score,fridge_or_cool))%>%
-    dplyr::rename(harvest_temp=temperature_c,harvest_temp_mean=temperature_mean,
-                  harvest_rain=rainfall_mm,harvest_rain_mean=rainfall_mean,
-                  year=timepointyears,
+    dplyr::rename(year=timepointyears,
                   loss_percentage=loss_per_clean)%>%
     mutate(m49_numeric=as.numeric(geographicaream49))
+
 
 # Label official SUA data.
 model_data$tag_datacollection[model_data$tag_datacollection=="SWS_2"] <- "SUA"
@@ -673,7 +1731,7 @@ model_data %<>%
     left_join(dplyr::select(LPI_full, iso3, year, sm_lpi), by = c("iso3","year")) %>%
     left_join(dplyr::select(FAOCrops, crop, measureditemcpc), by = "measureditemcpc") %>%
     left_join(monthly_weather_full, by = c("harvesting_month_end"="month","year","iso3")) %>%
-    filter(year >= 1991) %>%
+    filter(year >= start_year) %>%
     group_by(iso3) %>%
     ungroup() %>%
     mutate(
@@ -695,18 +1753,6 @@ model_data$stage[model_data$tag_datacollection=="National Accounts"] <- "primary
 # primary product in stage_original.
 model_data$stage_original <- model_data$stage
 model_data$stage[model_data$stage=="primaryproduct"] <- "farm"
-
-# # Comparsions of new versus old weather covariate values.
-# ggplot(model_data,aes(x=harvest_rain_mean,y=rainfall_mean))+
-#   geom_abline()+
-#   geom_point()+
-#   labs(x="From old code",y="New implementation",title="Rainfall (mm)")
-# 
-# ggplot(model_data,aes(x=harvest_temp_mean,y=temperature_mean))+
-#   geom_abline()+
-#   geom_point()+
-#   labs(x="From old code",y="New implementation",title="Temperature (C)")
-
 
 # Plot the data source distribution before reducing low-variance time series.
 model_data$datasource <- model_data$solr_id
@@ -818,13 +1864,19 @@ excluded_data <- model_data%>%filter(is.na(iso3)|is.na(year)|is.na(rainfall_mean
                                          is.na(temperature_mean)|is.na(sm_GDP_percap)|is.na(sm_lpi))
 
 # Remove data points with NA covariate values.
-model_data%<>%filter(!is.na(iso3),!is.na(year),!is.na(rainfall_mean),
-                     !is.na(temperature_mean),!is.na(sm_GDP_percap),
-                     !is.na(sm_lpi))%>%
-    ungroup()%>%
-    mutate(across(where(is.character), as.factor),
-           stage=relevel(stage,ref="wholesupplychain"),
-           method=relevel(method,ref="Supply utilization accounts"))
+model_data %<>%
+    filter(!is.na(iso3), !is.na(year), !is.na(rainfall_mean),
+           !is.na(temperature_mean), !is.na(sm_GDP_percap),
+           !is.na(sm_lpi)) %>%
+    ungroup() %>%
+    mutate(
+        stage = factor(stage),
+        method = factor(method)
+    ) %>%
+    mutate(
+        stage = stats::relevel(stage, ref = "wholesupplychain"),
+        method = stats::relevel(method, ref = "Supply utilization accounts")
+    )
 
 # Make SWS the first source in the data source effect.
 model_data$source <- factor(model_data$datasource,levels=c("SWS",levels(model_data$datasource)[levels(model_data$datasource)!="SWS"]))
@@ -917,57 +1969,6 @@ qs2::qs_save(pred_inputs, file.path(save_dir_model_data, "prediction_inputs.qs2"
 
 
 
-
-# Faster test model for quick experimentation -----------------------------
-
-# test_data <- model_data%>%
-#   mutate(harvest_rain_mean=as.numeric(scale(log(rainfall_mean+1))),
-#          harvest_temp_mean=as.numeric(scale(temperature_mean)),
-#          sm_GDP_percap=as.numeric(scale(sm_GDP_percap)),
-#          sm_lpi=as.numeric(scale(sm_lpi)),
-#          year=as.numeric(scale(year)),
-#          url=as.factor(url))
-
-# test_model <- bam(cloglog(loss_percentage)~
-#                     year+
-#                     harvest_rain_mean+
-#                     harvest_temp_mean+
-#                     sm_GDP_percap+
-#                     sm_lpi+
-#                     stage+
-#                     method+
-#                     s(region_l1,bs="re")+
-#                     s(region_l1,by=year,bs="re")+
-#                     s(region_l1,by=harvest_rain_mean,bs="re")+
-#                     s(region_l1,by=harvest_temp_mean,bs="re")+
-#                     s(region_l1,by=sm_GDP_percap,bs="re")+
-#                     s(region_l1,by=sm_lpi,bs="re")+
-#                     s(region_l2,bs="re")+
-#                     s(region_l2,by=year,bs="re")+
-#                     s(region_l2,by=harvest_rain_mean,bs="re")+
-#                     s(region_l2,by=harvest_temp_mean,bs="re")+
-#                     s(region_l2,by=sm_GDP_percap,bs="re")+
-#                     s(region_l2,by=sm_lpi,bs="re")+
-#                     s(food_group,bs="re")+
-#                     s(food_group,by=year,bs="re")+
-#                     s(food_group,by=harvest_rain_mean,bs="re")+
-#                     s(food_group,by=harvest_temp_mean,bs="re")+
-#                     s(food_group,by=sm_GDP_percap,bs="re")+
-#                     s(food_group,by=sm_lpi,bs="re")+
-#                     s(iso3,bs="re")+
-#                     s(iso3,by=year,bs="re")+
-#                     s(crop,bs="re")+
-#                     s(crop,by=year,bs="re")+
-#                     # s(iso3,food_group,bs="re")+
-#                     # s(iso3,food_group,by=year,bs="re")+
-#                     # s(iso3,crop,bs="re")+
-#                     # s(iso3,crop,by=year,bs="re")+
-#                     s(solr_id,bs="re"),
-#                   data=test_data)
-# summary(test_model)
-# 
-
-
 # Some paper plots --------------------------------------------------------
 save_plots_dir <- file.path(R_SWS_SHARE_PATH, "Bayesian_food_loss", "Plots")
 dir.create(save_plots_dir, recursive = TRUE, showWarnings = FALSE)
@@ -988,162 +1989,6 @@ lith_lpi <- ggplot(LPI_full%>%filter(country=="Lithuania"))+
     labs(x=NULL,y="Index value",title="(b) Logistics performance index")
 ggsave(gridExtra::arrangeGrob(jamaica_gdp,lith_lpi,nrow=1),file=file.path(save_plots_dir,"covariates_example.png"),width=8,height=3.25,dpi=600)
 
-
-
-# Region and subregion map.
-
-# Load the shapefile.
-#shape_file <- shapefile(file.path(R_SWS_SHARE_PATH,"food-loss-test/Covariates/Map shapefiles/BNDA.shp"))
-
-
-
-
-###Commented from here:
-
-# shp_path <- file.path(R_SWS_SHARE_PATH, "food-loss-test/Covariates/Map shapefiles/BNDA.shp")
-# 
-# shape_file <- sf::st_read(shp_path, quiet = TRUE)
-# 
-# # convert sf -> sp object so your existing shape_file@data + fortify() code still works
-# shape_file <- as(shape_file, "Spatial")
-# 
-# 
-# # Join map and partition by iso3 code.
-# map_data <- data.frame(id=rownames(shape_file@data), NAME=shape_file@data$ROMNAM,
-#                        ISO3=shape_file@data$ISO3CD, stringsAsFactors=F)%>%
-#   left_join(dplyr::select(M49,iso3,region_l2,region_l1),by=c("ISO3"="iso3"))
-# map_df <- fortify(shape_file)
-# map_df <- left_join(map_df,map_data, by="id")
-# 
-# # Establish the region, subregion hierarchy.
-# region_hierarchy <- select(M49,region_l1, region_l2,l1_num)%>%distinct()%>%
-#   arrange(region_l1,region_l2)%>%
-#   group_by(l1_num)%>%group_modify(function(x,y){
-#     x$l2_num <- 1:nrow(x)
-#     return(x)
-#   })
-# 
-# # Generate color palette for regions.
-# l1_palette <- brewer.pal(length(unique(region_hierarchy$region_l1)), "GnBu")
-# pastel_base_colors <- c(
-#   "#A8C5DB",  # soft blue
-#   "#F7C8A3",  # peach
-#   "#B7D6D7",  # dusty aqua
-#   "#F4A6B5",  # muted pink
-#   "#BFD8B8",  # sage green (less neon)
-#   "#D6CDEA",  # soft lavender
-#   "#FAF1B0"   # muted lemon
-# )
-# 
-# l1_palette <- c(
-#   "#6B8BA4",  # steel blue
-#   
-#   "#7FA5A5",  # slate teal
-#   
-#   "#7C9C75",  # olive green
-#   "#D29060",  # warm tan
-#   
-# )
-# 
-# l1_palette <- c(
-#   "#C46C7B",  # dusty rose
-#   "#C4B24F",   # mustard
-#   "#7FBFA8",  # dusty aqua
-#   "#5DAFAD",  # deeper cyan
-#   "#3996B3",  # ocean blue
-#   "#A291C6",  # dusky purple
-#   "#17445E"   # navy blue
-# )
-# 
-# 
-# names(l1_palette) <- unique(region_hierarchy$region_l1)
-# 
-# # Shades for subregions.
-# region_hierarchy%<>%group_by(l1_num)%>%
-#   group_modify(function(x,y){
-#     x$colour <- colorRampPalette(c("white", l1_palette[y$l1_num]))(max(x$l2_num)+1)[-1]
-#     return(x)
-#   })
-# 
-# # Generate shades for L2 within each L1
-# map_df%<>%left_join(dplyr::select(region_hierarchy,region_l2,region_l1,colour))%>%
-#   mutate(region_l2=factor(region_l2,levels=region_hierarchy$region_l2))
-# 
-# colour_map <- setNames(region_hierarchy$colour, region_hierarchy$region_l2)
-# 
-# # Plot the map.
-# region_map <- ggplot(map_df, aes(x=long, y=lat, group=group))+
-#   geom_polygon(aes(fill=region_l2))+
-#   scale_fill_manual(name=NULL,values=colour_map,na.value = "white",
-#                     guide=guide_legend(nrow=11),
-#                     na.translate = F)+
-#   coord_fixed(ylim=c(-56.5,83.62295),xlim=c(-179.9,179.9),expand = FALSE)+
-#   theme_void(base_size = 7)+
-#   #geom_path(colour="grey10", linewidth=0.1)+
-#   theme(legend.key.size = unit(0.6,"lines"),
-#         panel.grid.major = element_blank(),
-#         panel.grid.minor = element_blank(),
-#         panel.background = element_rect(fill = "white",
-#                                         colour = "white"),
-#         axis.line = element_blank(),
-#         plot.background = element_rect(fill="white",colour="white"),
-#         plot.margin = margin(t=2.5,r=5,b=1.75,l=5))
-# ggsave(region_map,file=file.path(R_SWS_SHARE_PATH,"food-loss-test/Plots/region_map.png"),width=180,height=52,units="mm",dpi=600)
-# 
-# # Write country grouping table.
-# write_excel_csv(select(M49,country,iso3,sdg_region_name,
-#                        sdg_subregion_l1,region_l1,sdg_subregion_l2),
-#                 file=file.path(R_SWS_SHARE_PATH,"food-loss-test/Tables/country_grouping_table.csv"))
-# 
-# 
-# 
-# 
-# 
-# 
-
-
-
-# 
-# #Lyuba's checks code
-# # how many unique observed combinations do you have?
-# obs <- model_data |>
-#   dplyr::distinct(iso3, crop, year, stage)
-# 
-# n_obs <- nrow(obs)
-# 
-# # how many combos exist if it were complete?
-# n_full <- length(unique(model_data$iso3)) *
-#   length(unique(model_data$crop)) *
-#   length(unique(model_data$year)) *
-#   length(unique(model_data$stage))
-# 
-# coverage <- n_obs / n_full
-# coverage
-# 
-# #Counts per group (by counry)
-# country_n <- model_data |> dplyr::count(iso3, name="n")
-# summary(country_n$n)
-# country_n |> dplyr::arrange(n) |> head(20)
-# 
-# 
-# #by crop/product
-# crop_n <- model_data |> dplyr::count(crop, name="n")
-# summary(crop_n$n)
-# crop_n |> dplyr::arrange(n) |> head(20)
-# 
-# 
-# #By year
-# year_n <- model_data |> dplyr::count(year, name="n")
-# year_n |> dplyr::arrange(year)
-# 
-# 
-# #by (country/crop) interaction 
-# cc_n <- model_data |> dplyr::count(iso3, crop, name="n")
-# summary(cc_n$n)
-# cc_n |> dplyr::arrange(n) |> head(30)
-# 
-# 
-# 
 
 
 
@@ -1171,7 +2016,7 @@ rhalf_cauchy <- nimbleFunction(run = function(n = integer(0), scale = double(0))
 P <- 6 # Number of parameters
 pred_meta <- list(
     P = P,
-    year_seq = 1991:2024
+    year_seq = start_year:end_year
 )
 qs2::qs_save(pred_meta, file.path(save_dir_model_data, "prediction_meta.qs2"))
 
