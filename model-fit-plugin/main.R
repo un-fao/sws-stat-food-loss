@@ -1886,16 +1886,16 @@ model_data %<>%
 model_data$source <- factor(model_data$datasource,levels=c("SWS",levels(model_data$datasource)[levels(model_data$datasource)!="SWS"]))
 
 # Make a lot of variables factors with carefully-specified levels.
-model_data%<>%mutate(
-    #we can keep iso3 but it is optional
-    iso3=factor(iso3,levels=sort(unique(model_data$iso3))),
-    #model country id = M49 numeric (what Nimble will use)
-    country_m49 =factor(m49_numeric, levels = sort(unique(m49_numeric))), 
-    region_l2=factor(region_l2,levels=sort(unique(M49$region_l2))),
-    region_l1=factor(region_l1,levels=sort(unique(M49$region_l1))),
-    measureditemcpc=factor(measureditemcpc,levels=sort(unique(model_data$measureditemcpc))),
-    basket_country=factor(paste(food_group,m49_numeric),levels=sort(unique(paste(food_group,m49_numeric)))),
-    crop_country=factor(paste(measureditemcpc,m49_numeric),levels=sort(unique(paste(measureditemcpc,m49_numeric))))
+model_data %<>% mutate(
+    iso3 = factor(iso3, levels = sort(unique(model_data$iso3))),
+    country_m49 = factor(m49_numeric, levels = sort(unique(m49_numeric))), 
+    region_l2 = factor(region_l2, levels = sort(unique(M49$region_l2))),
+    region_l1 = factor(region_l1, levels = sort(unique(M49$region_l1))),
+    food_group = factor(food_group, levels = sort(unique(food_group))),
+    crop = factor(crop, levels = sort(unique(crop))),
+    measureditemcpc = factor(measureditemcpc, levels = sort(unique(model_data$measureditemcpc))),
+    basket_country = factor(paste(food_group, m49_numeric), levels = sort(unique(paste(food_group, m49_numeric)))),
+    crop_country = factor(paste(measureditemcpc, m49_numeric), levels = sort(unique(paste(measureditemcpc, m49_numeric))))
 )
 
 # Model training data row index.
