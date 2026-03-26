@@ -114,9 +114,12 @@ selectedYear <- as.character(years_out)
 #load(file.path(R_SWS_SHARE_PATH,'Bayesian_food_loss/Inputs/CropCalendar2.RData'))
 #load(file.path(R_SWS_SHARE_PATH,'Bayesian_food_loss/Inputs/input_data2.RData'))
 
-lapply(list.files("R", pattern = "\\.R$", full.names = TRUE), source)
-lapply(list.files("newGetData_functions", pattern = "\\.R$", full.names = TRUE), source)
+#lapply(list.files("R", pattern = "\\.R$", full.names = TRUE), source)
+source_files <- c(
+    list.files(file.path(if (CheckDebug()) "." else Sys.getenv("ROOT_PATH"), "R"), full.names = TRUE, pattern = "\\.R$")
+)
 
+invisible(lapply(source_files, source))
 ############################
 # Training data construction
 ############################
@@ -127,21 +130,13 @@ AGGREGATE_ACTIVITIES <- TRUE
 COMPLETE_COUNTRYGROUPS <- TRUE # Add missing country?
 COMPLETE_CROPCALENDAR <- TRUE # Complete crop calendar?
 
-#--- LIBRARIES AND PARAMETERS ----
-LOAD_LOCAL <- FALSE
-GET_SWS_DATA <- TRUE
-REGIONAL_MODEL_MK <- FALSE # Use FSC_Markov_Reg instead of FSC_Markov
-REGIONAL_MODEL_RandEff <- TRUE # Use random effect regional model
+
 
 library(stats4)
 library(data.table)
 library(plyr)
 library(dplyr)
-library(rpart)
 library(scales)
-# library(broom)
-
-
 library(faosws)
 library(faoswsUtil)
 library(faoswsFlag)
