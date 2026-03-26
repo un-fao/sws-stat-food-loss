@@ -4,14 +4,19 @@
 # This plugin prepares the model training dataset for the
 # Bayesian food loss workflow and fits the hierarchical
 # Bayesian model in NIMBLE. It pulls production, import,
-# and protected loss data from SWS, reconstructs observed
-# loss percentages from these inputs, combines them with
-# literature-based loss factor data, rebuilds the country
-# grouping structure, filters valid production support,
-# joins harvest calendar, weather, GDP, and LPI covariates,
-# applies the required preprocessing steps, and saves the
-# fitted model outputs and auxiliary objects needed for
-# the prediction phase.
+# and protected loss data from SWS, reconciles protected
+# loss observations from SUA and AP sources, reconstructs
+# observed loss percentages, combines them with cleaned
+# literature-based loss factor data, rebuilds the M49/SDG
+# country grouping structure, restricts the data to valid
+# country-product-year combinations with production support,
+# joins harvest calendar and preloaded weather, GDP, and
+# LPI covariates from SWS datatables, applies the required
+# preprocessing steps for modelling, fits the model, and
+# saves the fitted outputs, scaling objects, factor-level
+# mappings, and prediction inputs needed for the prediction
+# phase. The plugin also produces convergence diagnostics
+# and an HTML convergence report.
 #
 # Main outputs:
 # - model_data.qs2
@@ -22,6 +27,8 @@
 # - levels_fit.qs2
 # - scale_fit.qs2
 # - convergence_report.html
+# - psrf_diagnostics.csv
+# - convergence_diagnostics.csv
 #
 # Parameters:
 # - start_year: first year to include (default 1991)
@@ -107,12 +114,9 @@ selectedYear <- as.character(years_out)
 #load(file.path(R_SWS_SHARE_PATH,'Bayesian_food_loss/Inputs/CropCalendar2.RData'))
 #load(file.path(R_SWS_SHARE_PATH,'Bayesian_food_loss/Inputs/input_data2.RData'))
 
-#lapply(list.files("R", pattern = "\\.R$", full.names = TRUE), source)
-source_files <- c(
-    list.files(file.path(if (CheckDebug()) "." else Sys.getenv("ROOT_PATH"), "R"), full.names = TRUE, pattern = "\\.R$")
-)
+lapply(list.files("R", pattern = "\\.R$", full.names = TRUE), source)
+lapply(list.files("newGetData_functions", pattern = "\\.R$", full.names = TRUE), source)
 
-invisible(lapply(source_files, source))
 ############################
 # Training data construction
 ############################
@@ -133,7 +137,14 @@ library(stats4)
 library(data.table)
 library(plyr)
 library(dplyr)
+library(dtplyr)
+library(rpart)
 library(scales)
+library(plm)
+# library(broom)
+library(lmtest)
+library(imputeTS)
+library(forecast)
 
 library(faosws)
 library(faoswsUtil)
@@ -1154,12 +1165,7 @@ ConvFactor2 <- ConvFactor2[!(measureditemcpc == '21111.01' & geographicaream49 =
 setkey(ConvFactor2)
 ConvFactor2 <- unique(ConvFactor2)
 
-#--- Markov Chain ----
 
-message('FL model: Markov chain')
-
-## Runs the Markov Model to standardize estimates (RawData, opt, modelEst, selectedYear, CountryGroup, fbsTree)
-#CountryGroup
 ConvFactor2[,isocode := NULL]
 ConvFactor2 <- merge(ConvFactor2, CountryGroup[,.(geographicaream49, isocode)], by = 'geographicaream49', all.x = T)
 
@@ -1883,7 +1889,8 @@ model_data %<>%
     )
 
 # Make SWS the first source in the data source effect.
-model_data$source <- factor(model_data$datasource,levels=c("SWS",levels(model_data$datasource)[levels(model_data$datasource)!="SWS"]))
+model_data$source <- factor(model_data$datasource)
+model_data$source <- stats::relevel(model_data$source, ref = "SWS")
 
 # Make a lot of variables factors with carefully-specified levels.
 model_data %<>% mutate(
