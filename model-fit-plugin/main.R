@@ -76,6 +76,10 @@ library(faoswsUtil)
 
 library(countrycode)
 
+library(stats4)
+library(scales)
+library(faoswsFlag)
+
 
 if (faosws::CheckDebug()) {
     library(faoswsModules)
@@ -132,14 +136,7 @@ COMPLETE_CROPCALENDAR <- TRUE # Complete crop calendar?
 
 
 
-library(stats4)
-library(data.table)
-library(plyr)
-library(dplyr)
-library(scales)
-library(faosws)
-library(faoswsUtil)
-library(faoswsFlag)
+
 
 
 rapid_ass <- as.data.table(dplyr::tribble(
