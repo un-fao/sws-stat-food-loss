@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.30">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Lyubov Doroshenko">
+
+<title>Bayesian food loss estimation</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="clean_test_files/libs/clipboard/clipboard.min.js"></script>
+<script src="clean_test_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="clean_test_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="clean_test_files/libs/quarto-html/popper.min.js"></script>
+<script src="clean_test_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="clean_test_files/libs/quarto-html/anchor.min.js"></script>
+<link href="clean_test_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="clean_test_files/libs/quarto-html/quarto-syntax-highlighting-b6a8276bf55561bdbc268162d41bd1f7.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="clean_test_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="clean_test_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="clean_test_files/libs/bootstrap/bootstrap-efbb37e9afcc02144ebbc7afd12a776f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article toc-left">
+<div id="quarto-sidebar-toc-left" class="sidebar toc-left">
+  <nav id="TOC" role="doc-toc" class="toc-active" data-toc-expanded="99">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction"><span class="header-section-number">1</span> Introduction</a></li>
+  <li><a href="#general-workflow" id="toc-general-workflow" class="nav-link" data-scroll-target="#general-workflow"><span class="header-section-number">2</span> General workflow</a></li>
+  <li><a href="#covariates-preparation" id="toc-covariates-preparation" class="nav-link" data-scroll-target="#covariates-preparation"><span class="header-section-number">3</span> Covariates preparation</a>
+  <ul class="collapse">
+  <li><a href="#purpose" id="toc-purpose" class="nav-link" data-scroll-target="#purpose"><span class="header-section-number">3.1</span> Purpose</a></li>
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters"><span class="header-section-number">3.2</span> Parameters</a></li>
+  <li><a href="#country-grouping-table" id="toc-country-grouping-table" class="nav-link" data-scroll-target="#country-grouping-table"><span class="header-section-number">3.3</span> Country grouping table</a></li>
+  <li><a href="#raw-covariate-output-directory" id="toc-raw-covariate-output-directory" class="nav-link" data-scroll-target="#raw-covariate-output-directory"><span class="header-section-number">3.4</span> Raw covariate output directory</a></li>
+  <li><a href="#weather-covariates" id="toc-weather-covariates" class="nav-link" data-scroll-target="#weather-covariates"><span class="header-section-number">3.5</span> Weather covariates</a>
+  <ul class="collapse">
+  <li><a href="#temperature" id="toc-temperature" class="nav-link" data-scroll-target="#temperature"><span class="header-section-number">3.5.1</span> Temperature</a></li>
+  <li><a href="#rainfall" id="toc-rainfall" class="nav-link" data-scroll-target="#rainfall"><span class="header-section-number">3.5.2</span> Rainfall</a></li>
+  </ul></li>
+  <li><a href="#gdp-per-capita-covariate" id="toc-gdp-per-capita-covariate" class="nav-link" data-scroll-target="#gdp-per-capita-covariate"><span class="header-section-number">3.6</span> GDP per capita covariate</a></li>
+  <li><a href="#logistics-performance-index-covariate" id="toc-logistics-performance-index-covariate" class="nav-link" data-scroll-target="#logistics-performance-index-covariate"><span class="header-section-number">3.7</span> Logistics Performance Index covariate</a></li>
+  <li><a href="#main-outputs" id="toc-main-outputs" class="nav-link" data-scroll-target="#main-outputs"><span class="header-section-number">3.8</span> Main outputs</a></li>
+  <li><a href="#schematic-workflow-of-the-covariates-preparation-plugin" id="toc-schematic-workflow-of-the-covariates-preparation-plugin" class="nav-link" data-scroll-target="#schematic-workflow-of-the-covariates-preparation-plugin"><span class="header-section-number">3.9</span> Schematic workflow of the covariates preparation plugin</a></li>
+  <li><a href="#role-in-the-overall-workflow" id="toc-role-in-the-overall-workflow" class="nav-link" data-scroll-target="#role-in-the-overall-workflow"><span class="header-section-number">3.10</span> Role in the overall workflow</a></li>
+  </ul></li>
+  <li><a href="#model-fitting" id="toc-model-fitting" class="nav-link" data-scroll-target="#model-fitting"><span class="header-section-number">4</span> Model fitting</a>
+  <ul class="collapse">
+  <li><a href="#purpose-1" id="toc-purpose-1" class="nav-link" data-scroll-target="#purpose-1"><span class="header-section-number">4.1</span> Purpose</a></li>
+  <li><a href="#plugin-inputs" id="toc-plugin-inputs" class="nav-link" data-scroll-target="#plugin-inputs"><span class="header-section-number">4.2</span> Plugin inputs</a></li>
+  <li><a href="#preparation-of-structural-support-objects" id="toc-preparation-of-structural-support-objects" class="nav-link" data-scroll-target="#preparation-of-structural-support-objects"><span class="header-section-number">4.3</span> Preparation of structural support objects</a></li>
+  <li><a href="#preparation-of-production-support" id="toc-preparation-of-production-support" class="nav-link" data-scroll-target="#preparation-of-production-support"><span class="header-section-number">4.4</span> Preparation of production support</a></li>
+  <li><a href="#reading-prepared-covariates" id="toc-reading-prepared-covariates" class="nav-link" data-scroll-target="#reading-prepared-covariates"><span class="header-section-number">4.5</span> Reading prepared covariates</a></li>
+  <li><a href="#preparation-of-the-model-training-dataset" id="toc-preparation-of-the-model-training-dataset" class="nav-link" data-scroll-target="#preparation-of-the-model-training-dataset"><span class="header-section-number">4.6</span> Preparation of the model training dataset</a></li>
+  <li><a href="#saving-model-data-objects-for-prediction" id="toc-saving-model-data-objects-for-prediction" class="nav-link" data-scroll-target="#saving-model-data-objects-for-prediction"><span class="header-section-number">4.7</span> Saving model-data objects for prediction</a></li>
+  <li><a href="#bayesian-model-specification-and-prior-structure" id="toc-bayesian-model-specification-and-prior-structure" class="nav-link" data-scroll-target="#bayesian-model-specification-and-prior-structure"><span class="header-section-number">4.8</span> Bayesian model specification and prior structure</a></li>
+  <li><a href="#construction-of-constants-and-data-for-nimble" id="toc-construction-of-constants-and-data-for-nimble" class="nav-link" data-scroll-target="#construction-of-constants-and-data-for-nimble"><span class="header-section-number">4.9</span> Construction of constants and data for NIMBLE</a></li>
+  <li><a href="#mcmc-setup-and-execution" id="toc-mcmc-setup-and-execution" class="nav-link" data-scroll-target="#mcmc-setup-and-execution"><span class="header-section-number">4.10</span> MCMC setup and execution</a></li>
+  <li><a href="#posterior-outputs" id="toc-posterior-outputs" class="nav-link" data-scroll-target="#posterior-outputs"><span class="header-section-number">4.11</span> Posterior outputs</a></li>
+  <li><a href="#main-outputs-of-the-fitting-stage" id="toc-main-outputs-of-the-fitting-stage" class="nav-link" data-scroll-target="#main-outputs-of-the-fitting-stage"><span class="header-section-number">4.12</span> Main outputs of the fitting stage</a></li>
+  <li><a href="#convergence-reporting" id="toc-convergence-reporting" class="nav-link" data-scroll-target="#convergence-reporting"><span class="header-section-number">4.13</span> Convergence reporting</a></li>
+  <li><a href="#schematic-workflow-of-the-model-fitting-plugin" id="toc-schematic-workflow-of-the-model-fitting-plugin" class="nav-link" data-scroll-target="#schematic-workflow-of-the-model-fitting-plugin"><span class="header-section-number">4.14</span> Schematic workflow of the model fitting plugin</a></li>
+  <li><a href="#role-in-the-overall-workflow-1" id="toc-role-in-the-overall-workflow-1" class="nav-link" data-scroll-target="#role-in-the-overall-workflow-1"><span class="header-section-number">4.15</span> Role in the overall workflow</a></li>
+  </ul></li>
+  <li><a href="#posterior-prediction-and-output-generation" id="toc-posterior-prediction-and-output-generation" class="nav-link" data-scroll-target="#posterior-prediction-and-output-generation"><span class="header-section-number">5</span> Posterior prediction and output generation</a>
+  <ul class="collapse">
+  <li><a href="#purpose-2" id="toc-purpose-2" class="nav-link" data-scroll-target="#purpose-2"><span class="header-section-number">5.1</span> Purpose</a></li>
+  <li><a href="#plugin-inputs-and-prediction-environment" id="toc-plugin-inputs-and-prediction-environment" class="nav-link" data-scroll-target="#plugin-inputs-and-prediction-environment"><span class="header-section-number">5.2</span> Plugin inputs and prediction environment</a></li>
+  <li><a href="#completion-of-posterior-effects-for-full-prediction-support" id="toc-completion-of-posterior-effects-for-full-prediction-support" class="nav-link" data-scroll-target="#completion-of-posterior-effects-for-full-prediction-support"><span class="header-section-number">5.3</span> Completion of posterior effects for full prediction support</a>
+  <ul class="collapse">
+  <li><a href="#country-effects" id="toc-country-effects" class="nav-link" data-scroll-target="#country-effects"><span class="header-section-number">5.3.1</span> Country effects</a></li>
+  <li><a href="#product-effects" id="toc-product-effects" class="nav-link" data-scroll-target="#product-effects"><span class="header-section-number">5.3.2</span> Product effects</a></li>
+  </ul></li>
+  <li><a href="#prediction-support-and-valid-combinations" id="toc-prediction-support-and-valid-combinations" class="nav-link" data-scroll-target="#prediction-support-and-valid-combinations"><span class="header-section-number">5.4</span> Prediction support and valid combinations</a></li>
+  <li><a href="#country-level-prediction-procedure" id="toc-country-level-prediction-procedure" class="nav-link" data-scroll-target="#country-level-prediction-procedure"><span class="header-section-number">5.5</span> Country-level prediction procedure</a></li>
+  <li><a href="#construction-of-design-matrices" id="toc-construction-of-design-matrices" class="nav-link" data-scroll-target="#construction-of-design-matrices"><span class="header-section-number">5.6</span> Construction of design matrices</a></li>
+  <li><a href="#product-level-posterior-prediction" id="toc-product-level-posterior-prediction" class="nav-link" data-scroll-target="#product-level-posterior-prediction"><span class="header-section-number">5.7</span> Product-level posterior prediction</a></li>
+  <li><a href="#generation-of-draw-by-draw-sua-and-survey-outputs" id="toc-generation-of-draw-by-draw-sua-and-survey-outputs" class="nav-link" data-scroll-target="#generation-of-draw-by-draw-sua-and-survey-outputs"><span class="header-section-number">5.8</span> Generation of draw-by-draw SUA and Survey outputs</a></li>
+  <li><a href="#computation-of-posterior-quantiles" id="toc-computation-of-posterior-quantiles" class="nav-link" data-scroll-target="#computation-of-posterior-quantiles"><span class="header-section-number">5.9</span> Computation of posterior quantiles</a></li>
+  <li><a href="#construction-of-the-quantile-output-table" id="toc-construction-of-the-quantile-output-table" class="nav-link" data-scroll-target="#construction-of-the-quantile-output-table"><span class="header-section-number">5.10</span> Construction of the quantile output table</a></li>
+  <li><a href="#reshaping-predictions-into-sws-output-structure" id="toc-reshaping-predictions-into-sws-output-structure" class="nav-link" data-scroll-target="#reshaping-predictions-into-sws-output-structure"><span class="header-section-number">5.11</span> Reshaping predictions into SWS output structure</a></li>
+  <li><a href="#removal-of-unsupported-missing-values" id="toc-removal-of-unsupported-missing-values" class="nav-link" data-scroll-target="#removal-of-unsupported-missing-values"><span class="header-section-number">5.12</span> Removal of unsupported missing values</a></li>
+  <li><a href="#saving-final-results-to-sws-datasets" id="toc-saving-final-results-to-sws-datasets" class="nav-link" data-scroll-target="#saving-final-results-to-sws-datasets"><span class="header-section-number">5.13</span> Saving final results to SWS datasets</a></li>
+  <li><a href="#final-checks" id="toc-final-checks" class="nav-link" data-scroll-target="#final-checks"><span class="header-section-number">5.14</span> Final checks</a></li>
+  <li><a href="#main-outputs-of-the-prediction-stage" id="toc-main-outputs-of-the-prediction-stage" class="nav-link" data-scroll-target="#main-outputs-of-the-prediction-stage"><span class="header-section-number">5.15</span> Main outputs of the prediction stage</a></li>
+  <li><a href="#schematic-workflow-of-the-predictions-plugin" id="toc-schematic-workflow-of-the-predictions-plugin" class="nav-link" data-scroll-target="#schematic-workflow-of-the-predictions-plugin"><span class="header-section-number">5.16</span> Schematic workflow of the predictions plugin</a></li>
+  <li><a href="#role-in-the-overall-workflow-2" id="toc-role-in-the-overall-workflow-2" class="nav-link" data-scroll-target="#role-in-the-overall-workflow-2"><span class="header-section-number">5.17</span> Role in the overall workflow</a></li>
+  </ul></li>
+  <li><a href="#main-outputs-of-the-workflow" id="toc-main-outputs-of-the-workflow" class="nav-link" data-scroll-target="#main-outputs-of-the-workflow"><span class="header-section-number">6</span> Main outputs of the workflow</a>
+  <ul class="collapse">
+  <li><a href="#intermediate-covariate-outputs" id="toc-intermediate-covariate-outputs" class="nav-link" data-scroll-target="#intermediate-covariate-outputs"><span class="header-section-number">6.1</span> Intermediate covariate outputs</a></li>
+  <li><a href="#model-data-and-posterior-objects" id="toc-model-data-and-posterior-objects" class="nav-link" data-scroll-target="#model-data-and-posterior-objects"><span class="header-section-number">6.2</span> Model-data and posterior objects</a></li>
+  <li><a href="#working-prediction-files" id="toc-working-prediction-files" class="nav-link" data-scroll-target="#working-prediction-files"><span class="header-section-number">6.3</span> Working prediction files</a></li>
+  <li><a href="#posterior-quantile-outputs" id="toc-posterior-quantile-outputs" class="nav-link" data-scroll-target="#posterior-quantile-outputs"><span class="header-section-number">6.4</span> Posterior quantile outputs</a></li>
+  <li><a href="#final-output-datasets" id="toc-final-output-datasets" class="nav-link" data-scroll-target="#final-output-datasets"><span class="header-section-number">6.5</span> Final output datasets</a></li>
+  <li><a href="#relationship-between-output-categories" id="toc-relationship-between-output-categories" class="nav-link" data-scroll-target="#relationship-between-output-categories"><span class="header-section-number">6.6</span> Relationship between output categories</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary"><span class="header-section-number">6.7</span> Summary</a></li>
+  </ul></li>
+  </ul>
+</nav>
+</div>
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Bayesian food loss estimation</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Lyubov Doroshenko </p>
+          </div>
+  </div>
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="introduction" class="level1" data-number="1">
+<h1 data-number="1"><span class="header-section-number">1</span> Introduction</h1>
+<p>This document describes the current implementation of the Bayesian food loss estimation workflow developed in R for use within the FAO Statistical Working System (SWS). The workflow has been designed to support the preparation, estimation, prediction, and saving of Bayesian food loss estimates in a modular way, so that the different stages of the process can be run, checked, and updated separately.</p>
+<p>The overall objective of the workflow is to generate model-based food loss estimates by combining observed loss data with a set of external covariates and hierarchical grouping structures. In practical terms, the process brings together information on countries, products, production support, harvest timing, climate conditions, GDP per capita, and logistics performance, and uses these inputs to fit a Bayesian hierarchical model capable of producing posterior predictive estimates for valid country-product-year combinations.</p>
+<p>The implementation is currently organized into three main R plugins:</p>
+<ol type="1">
+<li><strong>Covariates preparation plugin</strong></li>
+<li><strong>Model fitting plugin</strong></li>
+<li><strong>Predictions plugin</strong></li>
+</ol>
+<p>These three plugins form a connected pipeline. The first plugin prepares the country grouping framework and the main external covariates required by the model, and stores them in intermediate SWS datatables. The second plugin reads these prepared inputs, constructs the modelling dataset, fits the Bayesian hierarchical model, and saves the posterior outputs together with the auxiliary objects needed for prediction. The third plugin uses the saved posterior samples and prediction inputs to generate posterior predictive distributions, summarize them into quantiles, reshape the outputs into the required SWS structure, and save the final estimates to the target datasets.</p>
+<p>A central feature of this implementation is its reliance on a hierarchical country and product structure. Countries are organized using a custom grouping system derived from both M49 and SDG hierarchies, while products are linked to food groups, CPC items, and country-product interaction levels. This structure allows the model to borrow strength across related countries, subregions, and food groups, which is especially important in a context where observed loss data are sparse, unevenly distributed, or missing for many combinations of country, year, and product.</p>
+<p>Another key aspect of the workflow is the explicit preparation and smoothing of covariates before model fitting. Rather than relying directly on raw downloaded series, the implementation preprocesses temperature, rainfall, GDP per capita, and Logistics Performance Index data into forms that are consistent with the modelling support and the prediction stage. This improves reproducibility, keeps the estimation step more controlled, and makes it easier to trace how each covariate enters the model.</p>
+<p>The workflow is also designed with operational use in mind. Intermediate objects are saved between stages, and the ordered category definitions used when variables are converted to factors in R are preserved for consistency between fitting and prediction. In this workflow, this includes variables such as country, region, food group, product, stage, method, source, and interaction identifiers. Preserving these factor levels is essential because they determine the numeric indexing used by the Bayesian model and must remain unchanged when posterior predictions are generated. This makes the implementation more robust for repeated runs, testing, and future modifications, while also helping control memory usage and computational load.</p>
+<p>This workflow is designed to support reproducible execution by saving intermediate objects between stages, preserving the factor-level structure used during fitting, and storing the scaling constants and prediction-support objects required by downstream steps. Reproducibility is further supported by the use of renv.lock to maintain a controlled package environment.</p>
+<p>This document provides technical documentation of the current implementation as reflected in the existing R code. Its purpose is to describe what has been implemented, how the three plugins are connected, what data structures and intermediate outputs are created, and how the final estimates are produced and written back into SWS.</p>
+<p>In the following sections, the workflow is described step by step, beginning with the preparation of covariates, then the construction and fitting of the Bayesian model, and finally the generation and saving of posterior predictions.</p>
+</section>
+<section id="general-workflow" class="level1" data-number="2">
+<h1 data-number="2"><span class="header-section-number">2</span> General workflow</h1>
+<p>The Bayesian food loss estimation workflow is organized as a sequential pipeline composed of three main R plugins. Each plugin performs a distinct part of the process, but the three stages are tightly connected through shared intermediate outputs, common grouping structures, and saved model objects.</p>
+<p>The first stage is focused on covariates preparation and is implemented through the SWS plugin <span style="color: red;"><strong>bayesian_food_loss_covariates</strong></span>. Its role is to construct the main support objects and external covariates required by the modelling workflow. In particular, it builds the country grouping table used throughout the project, prepares the modelling country list, retrieves and reshapes weather covariates, prepares GDP and Logistics Performance Index data, and saves the processed outputs into dedicated SWS datatables. These intermediate outputs are designed to be reused by later stages rather than recomputed every time the model is fit.</p>
+<p>The second stage is focused on model fitting and is carried out by the SWS plugin <span style="color: red;"><strong>bayesian_food_loss</strong></span>. This plugin loads the prepared covariates together with the main model inputs, reconstructs the grouping structure used by the model, and builds the final model training dataset. At this stage, the observed food loss data are joined with product information, production support, harvest calendar information, climate covariates, GDP, and LPI. The plugin then performs several preprocessing steps, including filtering, imputation, aggregation of repeated series, treatment of duplicated or low-variance observations, and factor construction for the hierarchical model. Once the training dataset is ready, the plugin fits the Bayesian hierarchical model in NIMBLE and saves the posterior samples and auxiliary objects needed for prediction.</p>
+<p>The third stage concerns posterior prediction and output generation and is carried out by the SWS plugin <span style="color: red;"><strong>bayesian_food_loss_pred</strong></span>. This final stage loads the posterior draws from the fitted model together with the saved prediction inputs and metadata. Using these objects, it reconstructs the necessary coefficient arrays, generates posterior predictions for valid country-product-year combinations, and computes predictive quantiles. The plugin then reshapes the resulting outputs into the structure required by the target SWS datasets and saves the final food loss estimates separately for the SUA and Survey outputs.</p>
+<p>A central characteristic of the workflow is that it is modular but not independent across stages. The outputs of the first plugin are directly consumed by the second, and the outputs of the second are essential inputs for the third. For this reason, consistency of country codes, factor levels, year ranges, and support restrictions is critical across the entire pipeline. In particular, the workflow preserves common structures such as the <code>M49</code> grouping table, the valid production support combinations, the factor level mappings used in the fitted model, and the scaling constants applied to continuous covariates.</p>
+<p>Another important feature of the workflow is that predictions are not generated for every theoretical combination of country, product, and year. Instead, the workflow explicitly restricts modelling and prediction support to valid combinations derived from production data. This ensures that the final outputs remain aligned with the relevant production structure and avoids generating estimates for combinations that fall outside the intended modelling support.</p>
+<p>The workflow is also designed to separate preparation, estimation, and output generation as much as possible from a computational point of view. Intermediate objects are saved between steps, large posterior outputs are stored in compressed form, and prediction outputs are generated and saved in chunks in order to control memory usage. This makes the overall implementation more robust, easier to test, and more practical to run within the SWS environment.</p>
+<!-- ## Schematic overview of the Bayesian food loss workflow -->
+<p>The figure below provides a schematic overview of the full Bayesian food loss workflow and shows how the three plugins are connected through intermediate objects and final outputs. <img src="images/general_workflow.png" id="fig:general_workflow" class="img-fluid" style="width:100.0%" alt="The general model workflow"> In summary, the workflow can be read as a three-step process: first prepare the modelling covariates and country structure, then fit the Bayesian model on the processed training data, and finally use the posterior results to generate and save food loss predictions. The following sections describe each of these three plugins in detail.</p>
+</section>
+<section id="covariates-preparation" class="level1" data-number="3">
+<h1 data-number="3"><span class="header-section-number">3</span> Covariates preparation</h1>
+<p>The covariates preparation stage is carried out by the SWS plugin <span style="color: red;"><strong>bayesian_food_loss_covariates</strong></span>. Its role is to prepare the main support objects and external covariates required by the Bayesian food loss workflow before model fitting. In practical terms, this stage constructs the country grouping structure used throughout the pipeline, defines the modelling year range, prepares climate and macroeconomic covariates, and stores the processed outputs in SWS datatables so that they can be reused by downstream plugins.</p>
+<p>A key objective of this stage is to separate raw data retrieval from model estimation. Rather than downloading and processing all external inputs inside the fitting stage, the workflow prepares them in advance and saves them in a standardized form. This makes the later stages more reproducible, reduces repeated computation, and helps ensure that model fitting and prediction use a consistent set of covariates and support definitions.</p>
+<section id="purpose" class="level2" data-number="3.1">
+<h2 data-number="3.1" class="anchored" data-anchor-id="purpose"><span class="header-section-number">3.1</span> Purpose</h2>
+<p>The main purpose of this stage is to create a coherent and reusable covariate layer for the Bayesian model. More specifically, the plugin:</p>
+<ul>
+<li>constructs the country grouping table used by the workflow;</li>
+<li>defines the modelling year range based on plugin parameters;</li>
+<li>downloads and reshapes monthly temperature and rainfall data;</li>
+<li>prepares PPP (Purchasing Power Parity) GDP per capita data by combining World Bank and IMF sources;</li>
+<li>prepares Logistics Performance Index data from the World Bank;</li>
+<li>smooths selected macroeconomic covariates where required; and</li>
+<li>writes the final processed outputs into dedicated SWS datatables.</li>
+</ul>
+<p>These outputs are later read by the model fitting plugin and are also indirectly used during the prediction stage.</p>
+</section>
+<section id="parameters" class="level2" data-number="3.2">
+<h2 data-number="3.2" class="anchored" data-anchor-id="parameters"><span class="header-section-number">3.2</span> Parameters</h2>
+<p>The plugin uses two computation parameters to define the modelling year range:</p>
+<ul>
+<li><code>start_year</code>, with default value <code>1991</code>;</li>
+<li><code>end_year</code>, with default value <code>2024</code>.</li>
+</ul>
+<p>These parameters are used to build the vector <code>years_out</code>, which determines the years for which the plugin prepares the covariates and related support objects.</p>
+<p>In the current implementation, the covariates preparation plugin is tied to the source coverage and source-specific retrieval logic used in the code. In particular, some inputs are obtained through hard-coded external endpoints or versioned source files, so extending the workflow to years beyond the currently covered period may require updating the download logic, endpoint references, or source files used by the plugin. This is especially relevant for climate inputs, where the current code is explicitly configured to use the historical monthly series up to 2024, and for source series such as LPI, whose observed coverage is more limited than the full modelling year range. For example, the LPI source series used through the World Bank indicator <code>LP.LPI.OVRL.XQ</code> is currently available only through 2022. As a result, for later model years the workflow relies on the plugin’s smoothing procedure rather than on newly observed LPI values.</p>
+</section>
+<section id="country-grouping-table" class="level2" data-number="3.3">
+<h2 data-number="3.3" class="anchored" data-anchor-id="country-grouping-table"><span class="header-section-number">3.3</span> Country grouping table</h2>
+<p>The first major task performed by the plugin is the construction of the country grouping table, referred to in the code as <code>M49</code>. This table is a central object in the workflow because it defines the country-level grouping structure used in the subsequent modelling stages.</p>
+<p>The table is derived from the <code>geographicAreaM49</code> codelist in the <code>lossWaste</code> domain and from two tree structures:</p>
+<ul>
+<li>the M49 hierarchy rooted at <code>"1"</code>;</li>
+<li>the SDG hierarchy rooted at <code>"1.04"</code>.</li>
+</ul>
+<p>Starting from these structures, the plugin identifies the set of country codes that are valid leaves in both hierarchies and then derives, for each country, its corresponding SDG region and M49-based higher-level grouping.</p>
+<p>A central feature of this construction is the creation of two custom hierarchical aggregation levels:</p>
+<ul>
+<li><code>sdg_subregion_l1</code></li>
+<li><code>sdg_subregion_l2</code></li>
+</ul>
+<p>These two levels are hybrid groupings derived from both the SDG and M49 hierarchies and are designed specifically for the Bayesian modelling framework.</p>
+<p>At level 1, countries are grouped into broad modelling regions such as Asia, Europe, Northern Africa and Western Asia, Sub-Saharan Africa, Latin America and the Caribbean, Northern America, and Oceania excluding Australia and New Zealand.</p>
+<p>At level 2, countries are assigned to a more detailed regional subdivision. Depending on the level 1 group, this second level is derived from M49 subregions or, where needed during the construction logic, from intermediate regional structure. For example, Asian countries are split into subregions such as Southern Asia or Eastern Asia, and European countries into Northern, Southern, Eastern, or Western Europe. At the same time, Australia and New Zealand are joined with Northern America, since it is believed they have some similarities in their agroeconomic structures, and Northern Africa is merged with Western Asia, reflecting similarity in climate and terrain.</p>
+<p>After the grouping structure is constructed, ISO3 codes are attached to countries using the <code>countrycode</code> package, with manual handling for selected special cases. Countries not retained in the intended modelling structure are removed.</p>
+<p>The final <code>M49</code> table therefore provides, for each country, the country code, country name, SDG region, level 1 grouping, level 2 grouping, ISO3 code, and the aliases and numeric identifiers later used by the model, such as <code>region_l1</code>, <code>region_l2</code>, <code>l1_num</code>, <code>l2_num</code>, and <code>m49_numeric</code>.</p>
+</section>
+<section id="raw-covariate-output-directory" class="level2" data-number="3.4">
+<h2 data-number="3.4" class="anchored" data-anchor-id="raw-covariate-output-directory"><span class="header-section-number">3.4</span> Raw covariate output directory</h2>
+<p>The plugin creates a directory under the shared path to store raw or wide-format extracts of the downloaded covariates. This directory is used for traceability and inspection purposes and contains Excel versions of the climate, GDP, and LPI inputs before or alongside their transformation into final long-format SWS datatables.</p>
+</section>
+<section id="weather-covariates" class="level2" data-number="3.5">
+<h2 data-number="3.5" class="anchored" data-anchor-id="weather-covariates"><span class="header-section-number">3.5</span> Weather covariates</h2>
+<section id="temperature" class="level3" data-number="3.5.1">
+<h3 data-number="3.5.1" class="anchored" data-anchor-id="temperature"><span class="header-section-number">3.5.1</span> Temperature</h3>
+<p>Temperature data are downloaded from the World Bank Climate Knowledge Portal API using the CRU TS 4.09 historical monthly time series. The response is returned in JSON format and contains country-level monthly values indexed by year and month.</p>
+<p>The plugin parses the JSON response, extracts the temperature component, and reshapes the data in two stages. First, it builds a wide table with one row per country and one column per month. This wide version is saved locally as an Excel file for traceability. Second, it converts the same data into long format and separates the combined time identifier into distinct <code>year</code> and <code>month</code> variables.</p>
+<p>The final processed temperature output is written to the SWS datatable <code>temperature_bayesian</code>, using the variables:</p>
+<ul>
+<li><code>isocode</code></li>
+<li><code>year</code></li>
+<li><code>month</code></li>
+<li><code>temperature_c</code></li>
+</ul>
+<p>This datatable is later read by the model fitting plugin and used to derive climate covariates aligned to the harvest period defined from the crop calendar.</p>
+</section>
+<section id="rainfall" class="level3" data-number="3.5.2">
+<h3 data-number="3.5.2" class="anchored" data-anchor-id="rainfall"><span class="header-section-number">3.5.2</span> Rainfall</h3>
+<p>Rainfall is prepared in the same way as temperature and is obtained from the same World Bank Climate Knowledge Portal API response. After extracting the precipitation component from the JSON structure, the plugin first builds a wide country-by-month table, saves it locally as an Excel file, and then reshapes it into long format with separate year and month columns.</p>
+<p>The final rainfall output is written to the SWS datatable <code>rainfall_bayesian</code>, using the variables:</p>
+<ul>
+<li><code>isocode</code></li>
+<li><code>year</code></li>
+<li><code>month</code></li>
+<li><code>rainfall_mm</code></li>
+</ul>
+<p>Together, the temperature and rainfall datatables provide the climate covariates later matched to harvest timing in the model fitting stage.</p>
+</section>
+</section>
+<section id="gdp-per-capita-covariate" class="level2" data-number="3.6">
+<h2 data-number="3.6" class="anchored" data-anchor-id="gdp-per-capita-covariate"><span class="header-section-number">3.6</span> GDP per capita covariate</h2>
+<p>GDP per capita PPP is prepared by combining two external sources:</p>
+<ul>
+<li>World Bank WDI data, using indicator <code>NY.GDP.PCAP.PP.CD</code>;</li>
+<li>IMF DataMapper data, using indicator <code>PPPPC</code>.</li>
+</ul>
+<p>The plugin first retrieves the World Bank series for all available countries and years and saves a wide-format extract locally. It then retrieves the IMF series through the IMF API and also stores a wide-format extract. Both sources are transformed into long format and restricted to the modelling countries and years.</p>
+<p>The two sources are then merged into a single table. World Bank values are used as the preferred source, while IMF values are used only when the World Bank value is missing. The plugin keeps track of the data source used for each country-year combination.</p>
+<p>An additional manual imputation is implemented for South Sudan, where pre-observation values are blended with Sudan values up to the first available South Sudan GDP observation.</p>
+<p>The resulting GDP series is then smoothed separately by country using a Generalized Additive Model on the log scale:</p>
+<p><span class="math display">\[log(GDPpercapita) \sim Normal(\alpha_0 + f(year), \sigma^2_{GDP})\]</span></p>
+<p>where <span class="math inline">\(f(year)\)</span> is a smooth function of time. A log transformation on the left-hand side of the equation is used so that the distribution of the model residulas is closer to the assumed Normal distribution and so that the model cannot predict negative GDp per capita values. This model is implemented in the <code>mgcv</code> package in <code>R</code>, with a cubic spline basis assumed for <span class="math inline">\(f(year)\)</span>. For each country, the number of knots for <span class="math inline">\(f(year)\)</span> is specified as the number of years for which GDP per capita estimates are available, divided by four and rounded up.</p>
+<p>The smoothed series is stored in the variable <code>sm_GDP_percap</code>, while the unsmoothed combined series is kept as <code>GDP_percap</code>. Remaining missing smoothed values are imputed using the mean within <code>region_l2</code> and year.</p>
+<p>The final GDP output is written to the SWS datatable <code>gdp_bayesian</code>, using the variables:</p>
+<ul>
+<li><code>isocode</code></li>
+<li><code>year</code></li>
+<li><code>gdp_sm</code></li>
+<li><code>gdp_percap</code></li>
+</ul>
+</section>
+<section id="logistics-performance-index-covariate" class="level2" data-number="3.7">
+<h2 data-number="3.7" class="anchored" data-anchor-id="logistics-performance-index-covariate"><span class="header-section-number">3.7</span> Logistics Performance Index covariate</h2>
+<p>The Logistics Performance Index covariate is prepared from the World Bank WDI indicator <code>LP.LPI.OVRL.XQ</code>. The plugin downloads the raw series for all available countries and years, saves a wide-format extract locally, and then reshapes the data into long format.</p>
+<p>After excluding aggregate regions, the plugin joins the LPI observations to the full country-year grid and the smoothed GDP covariate, and then fits a generalized additive model with <code>mgcv::bam</code>. The model represents LPI as the sum of a smooth effect of standardized year (<code>s(year_sc, k = 7)</code>), a smooth effect of standardized smoothed GDP per capita (<code>s(sm_GDP_percap_sc)</code>), a country random intercept (<code>s(iso3, bs = "re")</code>), and a country-specific random slope on year (<code>s(iso3, bs = "re", by = year_sc)</code>). The smooth term are represented using thin-plate spline basis functions with second-order smoothing penalties. For the year effect, the model uses 7 knots, corresponding to one knot for each year in which observed LPI data are available, while for the smooth effect of smoothed GDP per capita it uses th default basis dimension of 10 knots. The fitted model is then used to predict smoothed LPI values for the full grid of modelling countries and years. More in detail, a single smooth regression modelling approach is implemented:</p>
+<p><span class="math display">\[LPI \sim Normal(\beta_0 + f_1 (year) + f_2 (GDPpercapita) + g_1 (country) + g_2(country)\times year, \\
+\sigma^2_{LPI}) \]</span> where <span class="math inline">\(f_1(year)\)</span> and <span class="math inline">\(f_2(GDPpercapita)\)</span> are smooth functions of centered and scaled year and of smooth GDP per capita, and <span class="math inline">\(g_1\)</span> and <span class="math inline">\(g_2\)</span> are country-level random intercepts and slopes of the centred and scaled year. Thus the two smooth functions pool information across countries for which LPI data were available, to allow prediction in countries without LPI, while the random intecepts and slopes allow for a closer fit for interpolation in countries with data for some years.</p>
+<p>The resulting smoothed LPI series is stored in <code>sm_lpi</code> in the intermediate object <code>LPI_full</code>, while the original observed series is retained in <code>lpi</code>. In the final output written to SWS, these are saved as <code>lpi_sm</code> and <code>lpi_raw</code>, respectively.</p>
+<p>The final LPI output is written to the SWS datatable <code>lpi_bayesian</code>, using the variables:</p>
+<ul>
+<li><code>isocode</code></li>
+<li><code>year</code></li>
+<li><code>lpi_sm</code></li>
+<li><code>lpi_raw</code></li>
+</ul>
+</section>
+<section id="main-outputs" class="level2" data-number="3.8">
+<h2 data-number="3.8" class="anchored" data-anchor-id="main-outputs"><span class="header-section-number">3.8</span> Main outputs</h2>
+<p>At the end of this stage, the plugin produces the main processed covariates objects required by the rest of the workflow. The principal outputs are:</p>
+<ul>
+<li>the <code>M49</code> country grouping table;</li>
+<li>the SWS datatable <code>temperature_bayesian</code>;</li>
+<li>the SWS datatable <code>rainfall_bayesian</code>;</li>
+<li>the SWS datatable <code>gdp_bayesian</code>;</li>
+<li>the SWS datatable <code>lpi_bayesian</code>.</li>
+</ul>
+<p>In addition, the plugin stores raw or wide-format Excel files for inspection and reproducibility purposes.</p>
+</section>
+<section id="schematic-workflow-of-the-covariates-preparation-plugin" class="level2" data-number="3.9">
+<h2 data-number="3.9" class="anchored" data-anchor-id="schematic-workflow-of-the-covariates-preparation-plugin"><span class="header-section-number">3.9</span> Schematic workflow of the covariates preparation plugin</h2>
+<p>The figure below provides a schematic overview of the covariates preparation plugin. It summarizes the main source inputs, the core processing steps carried out inside the plugin, and the processed outputs produced for downstream use in the Bayesian food loss workflow.</p>
+<div id="fig:covariates-workflow" class="quarto-figure quarto-figure-center anchored">
+<figure class="figure">
+<p><img src="images/covariates_plugin.png" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>Schematic workflow of the covariates preparation plugin.</figcaption>
+</figure>
+</div>
+<p>As shown in the Figure above, the plugin starts from the country hierarchy and external climate and macroeconomic sources, constructs the <code>M49</code> country grouping table, prepares the temperature, rainfall, GDP, and LPI covariates, and then writes the processed outputs for use by the subsequent stages of the workflow.</p>
+</section>
+<section id="role-in-the-overall-workflow" class="level2" data-number="3.10">
+<h2 data-number="3.10" class="anchored" data-anchor-id="role-in-the-overall-workflow"><span class="header-section-number">3.10</span> Role in the overall workflow</h2>
+<p>This stage provides the covariates backbone of the Bayesian food loss estimation workflow. The outputs generated here are directly used by the model fitting plugin, which reads the prepared weather, GDP, and LPI datatables and combines them with the harvest calendar, product support, and observed loss data. As a result, the correctness and consistency of this covariates preparation stage are essential for both the fitting and the prediction phases that follow.</p>
+</section>
+</section>
+<section id="model-fitting" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> Model fitting</h1>
+<p>The model fitting stage is carried out by the SWS plugin <span style="color: red;"><strong>bayesian_food_loss</strong></span>. This stage is responsible for transforming the available food loss observations and the prepared covariates into a coherent training dataset, estimating the Bayesian hierarchical model in NIMBLE, and saving all the posterior outputs and auxiliary objects required by the prediction stage.</p>
+<p>In operational terms, this stage sits at the center of the workflow. The previous stage produces the covariates layer and the country grouping structure, while the following stage depends entirely on the saved outputs created here. For this reason, the fitting stage does not simply estimate a model: it also defines the final modelling support, reconstructs the grouping structure used by the hierarchy, aligns all identifiers and factor levels, and preserves the scaling conventions that must later be reused in prediction.</p>
+<p>A particularly important feature of this stage is that it combines several different sources of information that were not originally stored in a single unified structure. The observed food loss data, the product reference information, the country groupings, the production support, the harvest calendar, the weather covariates, the GDP covariate, and the LPI covariate all enter the workflow separately. The fitting plugin assembles them into one modelling dataset and then applies a sequence of preprocessing rules intended to reduce duplication, remove invalid support, harmonize labels, and improve the statistical quality of the final estimation input. Here, product reference information refers to the tables that describe and classify products, mainly the mappings between CPC item codes, crop or product names, and food-group groupings used in the model, such as <code>FAOCrops</code> and <code>fbsTree1</code>.</p>
+<p>Even though the outputs of this plugin are saved on the shared drive and not written directly to the final SWS estimate datasets, the user is still required to set <em>Food loss estimates (SUA level)</em> as the involved dataset in the plugin configuration.</p>
+<section id="purpose-1" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="purpose-1"><span class="header-section-number">4.1</span> Purpose</h2>
+<p>The purpose of this stage is twofold.</p>
+<p>First, it prepares the final training dataset used by the Bayesian food loss model. This includes reconstructing the grouping structure, restricting the support to valid production combinations, attaching the relevant covariates to each observation, and cleaning the observed loss data before estimation.</p>
+<p>Second, it estimates the hierarchical Bayesian model and saves the fitted posterior outputs in a form that can be reused directly by the posterior prediction stage.</p>
+<p>More specifically, the plugin:</p>
+<ul>
+<li>loads the core model inputs from shared storage;</li>
+<li>reconstructs the <code>M49</code> country grouping table and the associated modelling identifiers;</li>
+<li>prepares the production support used to restrict valid country-product-year combinations;</li>
+<li>prepares and imputes the harvest calendar;</li>
+<li>reads the processed GDP, temperature, rainfall, and LPI covariates from SWS datatables;</li>
+<li>constructs the final model training dataset by joining all required components;</li>
+<li>applies duplicate handling, time-series reduction, exclusion rules, factor construction, and outlier treatment;</li>
+<li>defines the hierarchical Bayesian model in NIMBLE;</li>
+<li>runs parallel MCMC estimation; and</li>
+<li>saves the posterior draws and all auxiliary objects needed for prediction.</li>
+</ul>
+</section>
+<section id="plugin-inputs" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="plugin-inputs"><span class="header-section-number">4.2</span> Plugin inputs</h2>
+<p>The plugin uses several categories of inputs.</p>
+<p>The first category consists of the core observed loss inputs used to build the training dataset. The model training dataset is assembled inside the plugin by combining SWS-derived observed loss percentages, reconstructed from production, import, and loss quantities, with filtered and harmonized loss-percentage records from <code>flw_lossperfactors__20250506_solr</code>.</p>
+<p>First, the plugin retrieves the agricultural quantities needed to reconstruct observed SWS loss percentages. In particular, it reads:</p>
+<ul>
+<li>production quantity from the <code>aproduction</code> dataset of the <code>agriculture</code> domain using element <code>5510</code>;</li>
+<li>import quantity from the same source using element <code>5610</code>;</li>
+<li>loss quantity using element <code>5016</code>, retrieved from both SUA-based and AP-based sources and then combined within the plugin to define the retained observation for each country-product-year combination.</li>
+</ul>
+<p>The SUA-side loss quantity is retrieved through <code>getLossData_SUA()</code>, which combines:</p>
+<ul>
+<li><code>suafbs / sua_balanced</code> for the new-methodology period;</li>
+<li><code>faostat_one / updated_sua_2013_data</code> for the earlier period.</li>
+</ul>
+<p>The AP-side loss quantity is retrieved through <code>getLossData_AP()</code>, which reads element <code>5016</code> directly from <code>agriculture / aproduction</code>.</p>
+<p>In both functions, when <code>protected = TRUE</code>, the plugin retains only those observations whose flag combination, defined as the pair <code>(flagObservationStatus, flagMethod)</code>, is marked as <code>Protected == TRUE</code> in <code>faoswsFlag::flagValidTable</code>. Thus, in this workflow, “protected” refers to a predefined subset of valid flag combinations used to filter the retained loss observations.</p>
+<p>Second, the plugin reads the external loss-factor datatable <code>flw_lossperfactors__20250506_solr</code>, which contains loss-percentage records by country, year, product, and supply-chain stage together with source and collection metadata. These observations are filtered, harmonized, deduplicated, and aggregated where needed before being combined with the reconstructed SWS loss observations. Here, harmonization refers mainly to recoding country, product, and supply-chain-stage identifiers into a consistent structure across sources so that the records can be combined and used coherently in the modelling dataset.</p>
+<p>Together, these two sources form the core observed loss input from which the final training dataset is built.</p>
+<p>Additional supporting inputs used in this part of the workflow include:</p>
+<ul>
+<li><code>FAOCrops</code>, which links CPC item codes to crop descriptions;</li>
+<li><code>gfli_basket_cpc_article_2018</code> (<code>fbsTree1</code>), which provides the product-to-food-group mapping used by the model;</li>
+<li><code>crop_calendar_nov17</code> (<code>CropCalendar</code>), which provides harvest timing information;</li>
+<li><code>a2017regionalgroupings_sdg_feb2017</code>, which is used to attach country identifiers such as <code>isocode</code> and <code>country</code> in the preparation of the observed loss inputs.</li>
+</ul>
+<p>The second category consists of the covariate datatables prepared by the previous stage and stored in SWS. These include:</p>
+<ul>
+<li><code>gdp_bayesian</code></li>
+<li><code>temperature_bayesian</code></li>
+<li><code>rainfall_bayesian</code></li>
+<li><code>lpi_bayesian</code></li>
+</ul>
+<p>The third category consists of structural support objects recreated inside the plugin, most importantly the country grouping table <code>M49</code> and the valid production support derived from the agricultural production dataset.</p>
+<p>As in the covariates preparation stage, the plugin defines the modelling year range using the computation parameters <code>start_year</code> and <code>end_year</code>. If these parameters are not provided, the default range <code>1991:2024</code> is used.</p>
+<p>In this workflow, country information is used through more than one identifier. The main country key for observed loss data and production support is the M49 code, represented in the plugin mainly through <code>geographicAreaM49</code> and <code>m49_numeric</code>. At the same time, ISO3 country codes (<code>isocode</code> / <code>iso3</code>) are used for joining the prepared covariates and for defining some of the model factors. The actual hierarchical country grouping used by the model is provided by the reconstructed <code>M49</code> table, in particular through the derived grouping variables <code>region_l1</code> and <code>region_l2</code>.</p>
+</section>
+<section id="preparation-of-structural-support-objects" class="level2" data-number="4.3">
+<h2 data-number="4.3" class="anchored" data-anchor-id="preparation-of-structural-support-objects"><span class="header-section-number">4.3</span> Preparation of structural support objects</h2>
+<p>Before constructing the training data, the plugin standardizes part of the product classification used by the model. It explicitly reassigns some food groups, such as splitting roots and tubers and oil-bearing crops into separate categories. After that, it creates a numeric basket identifier through <code>basket_num</code> and joins the product metadata with <code>FAOCrops</code> in order to attach the CPC item code <code>measureditemcpc</code>.</p>
+<!-- The code first adjusts selected food-group labels, for example changing `"Meat & Animals Products"` to `"Meats & Animal Products"`. It then explicitly reassigns some food groups, such as splitting roots and tubers and oil-bearing crops into separate categories. After that, it creates a numeric basket identifier through `basket_num` and joins the product metadata with `FAOCrops` in order to attach the CPC item code `measureditemcpc`. -->
+<p>This product structure is used repeatedly in the model, both for the construction of the modelling dataset and for the hierarchical effects defined in the Bayesian specification.</p>
+<!-- ## Reconstruction of the country grouping table -->
+<p>The model fitting plugin reconstructs the <code>M49</code> country grouping table internally and uses it as the main hierarchical country support object for the estimation stage. The grouping logic is the same as the one described in the covariates preparation section and is therefore not repeated here. For convenience and inspection, the reconstructed table is also written to shared storage as <code>M49.csv</code>.</p>
+</section>
+<section id="preparation-of-production-support" class="level2" data-number="4.4">
+<h2 data-number="4.4" class="anchored" data-anchor-id="preparation-of-production-support"><span class="header-section-number">4.4</span> Preparation of production support</h2>
+<p>A key step in the fitting stage is the construction of the valid production support.</p>
+<p>The plugin queries the <code>aproduction</code> dataset in the <code>agriculture</code> domain using the element code <code>5510</code>, the model country list, the CPC items present in the model product list, and the selected year range. The resulting data are then reduced to a support table with the three keys:</p>
+<ul>
+<li><code>m49_numeric</code></li>
+<li><code>year</code></li>
+<li><code>measureditemcpc</code></li>
+</ul>
+<p>This support table is stored as <code>prod_support</code>.</p>
+<p>Its role is to define the valid country-product-year combinations retained by the workflow. Later in the plugin, the observed training data are filtered so that only rows whose country, year, and CPC item appear in <code>prod_support</code> are kept. This ensures that the modelling dataset remains aligned with valid production support and prevents the model from being fit on unsupported combinations.</p>
+<!-- ## Harvest calendar preparation -->
+<p>The plugin next prepares the harvest calendar information needed to match monthly weather covariates to the relevant agricultural timing.</p>
+<p>Starting from <code>CropCalendar</code>, it computes the median harvesting onset month and median harvesting end month for each country-product combination. Because this calendar is incomplete for some combinations, the plugin constructs a full country-product scaffold and then imputes missing values progressively.</p>
+<p>The imputation is done through a custom grouped-median procedure applied at several levels in sequence:</p>
+<ul>
+<li>product within <code>region_l2</code>;</li>
+<li>product within SDG region;</li>
+<li>food group within country;</li>
+<li>country overall.</li>
+</ul>
+<p>After imputation, the onset month is floored and the end month is ceiled. The resulting object <code>harvest_calendar_imputed</code> is then used to join weather covariates to observations through the harvesting end month.</p>
+<p>This step is important because the model does not simply use yearly weather averages; instead, it attempts to align weather conditions with the relevant harvest period for each country-product combination.</p>
+</section>
+<section id="reading-prepared-covariates" class="level2" data-number="4.5">
+<h2 data-number="4.5" class="anchored" data-anchor-id="reading-prepared-covariates"><span class="header-section-number">4.5</span> Reading prepared covariates</h2>
+<p>The plugin reads the datatable <code>gdp_bayesian</code> from SWS and checks that the expected variables are present:</p>
+<ul>
+<li><code>isocode</code></li>
+<li><code>year</code></li>
+<li><code>gdp_sm</code></li>
+<li><code>gdp_percap</code></li>
+</ul>
+<p>These are then renamed or mapped into the form used by the model, in particular:</p>
+<ul>
+<li><code>sm_GDP_percap</code></li>
+<li><code>GDP_percap</code></li>
+</ul>
+<p>The GDP table is then restricted to the ISO3 codes present in <code>M49</code> and to years greater than or equal to 1991. Finally, it is joined with selected country grouping information such as <code>region_l1</code>, <code>region_l2</code>, <code>country</code>, and <code>m49_numeric</code>.</p>
+<p>The smoothed GDP variable <code>sm_GDP_percap</code> is the one later used in model fitting, while <code>GDP_percap</code> is preserved as the raw-scale counterpart.</p>
+<!-- ## Reading prepared climate covariates -->
+<p>The plugin reads monthly climate data from the datatables <code>temperature_bayesian</code> and <code>rainfall_bayesian</code>. It checks that the expected variables are available and then filters the data to the modelling country support and the target year range.</p>
+<p>From these monthly series, the plugin derives two parallel quantities for each variable:</p>
+<ul>
+<li>the observed monthly value for a given country, year, and month;</li>
+<li>the long-run monthly mean for a given country and month.</li>
+</ul>
+<p>This is done separately for temperature and rainfall.</p>
+<p>The plugin then builds a full monthly country-year grid for all countries, years, and months in support and joins both the observed monthly values and the long-run monthly means. Missing values are imputed using averages within <code>region_l2</code>, year, and month. The result is stored in <code>monthly_weather_full</code>.</p>
+<p>This object later allows the training data to receive both the weather observed in the relevant harvest month and the long-run monthly means used as covariates.</p>
+<!-- ## Reading prepared LPI covariates -->
+<p>The plugin reads the datatable <code>lpi_bayesian</code> and checks that the expected fields are present:</p>
+<ul>
+<li><code>isocode</code></li>
+<li><code>year</code></li>
+<li><code>lpi_sm</code></li>
+<li><code>lpi_raw</code></li>
+</ul>
+<p>These are mapped into the variables used by the fitting workflow:</p>
+<ul>
+<li><code>sm_lpi</code></li>
+<li><code>lpi</code></li>
+</ul>
+<p>The table is filtered to the modelling countries and years and then joined with selected country information from <code>M49</code>.</p>
+<!-- It is also joined with GDP columns where useful for inspection and plotting. -->
+<p>As with GDP, the smoothed variable <code>sm_lpi</code> is the one used in the model, while the original <code>lpi</code> variable is retained as the raw-scale version.</p>
+</section>
+<section id="preparation-of-the-model-training-dataset" class="level2" data-number="4.6">
+<h2 data-number="4.6" class="anchored" data-anchor-id="preparation-of-the-model-training-dataset"><span class="header-section-number">4.6</span> Preparation of the model training dataset</h2>
+<p>The model training dataset is constructed inside the plugin from <code>FullSet</code>, which contains the combined observed loss inputs prepared in the preceding steps. This object brings together the reconstructed SWS-derived loss observations and the processed external loss-percentage records.</p>
+<p>The plugin first selects the main identifying and descriptive variables needed for modelling, namely country, year, CPC item, supply-chain location, observed loss percentage, data-collection tag, URL, and source identifier. It then joins the food-group information from <code>fbsTree1</code> and renames selected variables to obtain the modelling fields <code>year</code> and <code>loss_percentage</code>. At this stage, the variable <code>m49_numeric</code> is also created from <code>geographicaream49</code>.</p>
+<p>The dataset is then converted to a keyed <code>data.table</code>, and the variables <code>m49_numeric</code>, <code>year</code>, and <code>measureditemcpc</code> are normalized to the required types. Using a keyed join with <code>prod_support</code>, the plugin retains only those observations whose country-product-year combination is supported by the production data. This step ensures that the training data are restricted to valid combinations within the intended modelling support.</p>
+<p>After this filtering step, the plugin joins to the observed loss data:</p>
+<ul>
+<li>the country grouping information from <code>M49</code>;</li>
+<li>the imputed harvest calendar <code>harvest_calendar_imputed</code>;</li>
+<li>the GDP covariates from <code>GDP_full</code>;</li>
+<li>the LPI covariates from <code>LPI_full</code>;</li>
+<li>the crop names from <code>FAOCrops</code>;</li>
+<li>the weather covariates from <code>monthly_weather_full</code>, matched by harvest month, year, and ISO3 code.</li>
+</ul>
+<p>The resulting table contains, for each retained observation, the observed loss percentage together with the corresponding country grouping, product classification, harvest timing, and covariates required by the model.</p>
+<!-- ## Harmonization of stage and method labels -->
+<p>Once the base training table has been assembled, the plugin harmonizes the variables used to represent supply-chain stage and data-collection method as described below.</p>
+<p>The original supply-chain information is recorded into a final stage variable, <code>stage</code>, while the intermediate pre-conversion label is retained in <code>stage_original</code> for inspection and diagnostic. At the end of this step, the model uses a standardized set of stage categories, while <code>stage_original</code> preserves the earlier stage label where needed.</p>
+<p>Similarly, the original data-collection tags are grouped into standardized <code>method</code> variable used in the model. In the final training dataset, the variable distinguishes the broad modelling categories <code>Supply utilization account</code>, <code>Survey</code>, <code>Modelled estimates</code>, <code>Literature review</code>, and <code>Other</code>.</p>
+<p>The plugin also defined a standardized source variable for modelling. Starting from the original source identifier, it constructs <code>datasource</code> and applies selected relabelling so that recurring sources are represented consistently, in particular as <code>SWS</code>, <code>APHLIS</code>, and <code>USDA</code>, while all other records retain their original source label.</p>
+<p>These harmonized <code>stage</code>, <code>stage_original</code>, <code>method</code> and <code>datasource</code> variables are then used in the subsequent preprocessing and modelling steps.</p>
+<!-- ## Source harmonization and reduction of repeated series -->
+<p>The plugin next defines a standardized source variable for modelling. It first creates <code>datasource</code> from <code>solr_id</code>, then applies selected relabelling rules so that key recurring sources are represented consistently. In particular:</p>
+<ul>
+<li><code>"Statistical Working System"</code> is relabelled as <code>SWS</code>;</li>
+<li><code>"Aphlis"</code> is relabelled as <code>APHLIS</code>;</li>
+<li>records whose URL matches the USDA food-availability source are labelled as <code>USDA</code>.</li>
+</ul>
+<p>All remaining records retain their original source identifier.</p>
+<p>Because the observed loss data may contain duplicated, repeated, or mechanically similar time series, the plugin applies a sequence of reduction steps before estimation.</p>
+<p>First, duplicates are averaged in specific cases where repeated observations correspond to USDA or APHLIS records with the same country, year, product, stage, data source, collection tag, source identifier, and supply-chain location.</p>
+<p>Second, the plugin applies the custom function <code>carry_forward_remove()</code> to collapse low-information repeated series. This function is designed to reduce repeated or nearly constant observations that would otherwise over-represent some sources in the training data. In particular:</p>
+<ul>
+<li>if all observations in a grouped series come from APHLIS, the function replaces them with a single representative observation whose loss percentage is the mean across years;</li>
+<li>if the same rounded loss percentage appears at least three times, those repeated values are collapsed into a single representative point;</li>
+<li>if at least three observations remain within an extremely narrow range, they are also reduced to a single representative point.</li>
+</ul>
+<p>This reduction is applied sequentially at three grouping levels:</p>
+<ul>
+<li>by country, product, and stage;</li>
+<li>by country, product, data-collection tag, and stage;</li>
+<li>by country, product, source identifier, and stage.</li>
+</ul>
+<p>The purpose of this step is to reduce the influence of repeated or near-repeated observations that do not provide substantial additional information for estimation.</p>
+<!-- ## Exclusion of invalid and incomplete observations -->
+<!-- After the reduction of repeated series, the plugin removes one specific India observation for year 2001, following an explicit exclusion rule in the code. -->
+<p>The plugin then identifies observations with missing values in key modelling variables or covariates, including ISO3 code, year, rainfall, temperature, smoothed GDP per capita, and smoothed LPI. These observations are stored separately in <code>excluded_data</code> but are not used for model fitting.</p>
+<p>The final training dataset retains only complete cases for all required modelling dimensions and covariates.</p>
+<!-- ## Factor construction and model-ready identifiers -->
+<p>Once the cleaned dataset has been finalized, the plugin converts the main categorical variables into factors with explicitly controlled levels. These include:</p>
+<ul>
+<li><code>iso3</code></li>
+<li><code>country_m49</code></li>
+<li><code>region_l1</code></li>
+<li><code>region_l2</code></li>
+<li><code>measureditemcpc</code></li>
+<li><code>food_group</code></li>
+<li><code>crop</code></li>
+<li><code>basket_country</code></li>
+<li><code>crop_country</code></li>
+<li><code>stage</code></li>
+<li><code>method</code></li>
+<li><code>source</code></li>
+</ul>
+<p>Some factor reference levels are chosen deliberately because they define the baseline categories in the Bayesian model. In particular:</p>
+<ul>
+<li><code>"wholesupplychain"</code> is used as the reference level for <code>stage</code>;</li>
+<li><code>"Supply utilization accounts"</code> is used as the reference level for <code>method</code>;</li>
+<li><code>SWS</code> is forced to be the first level of <code>source</code>.</li>
+</ul>
+<p>The plugin also creates the interaction identifiers:</p>
+<ul>
+<li><code>basket_country</code>, combining food group and country;</li>
+<li><code>crop_country</code>, combining CPC item and country.</li>
+</ul>
+<!-- Finally, a row index `row` is added to the modelling dataset for tracking purposes. -->
+<!-- ## Windsorisation of loss percentages -->
+<p>Before fitting the model, the plugin applies a windsorisation step to the observed loss percentages.</p>
+<p>A custom function <code>windsorise()</code> caps values above a threshold defined as the median plus three standard deviations. This procedure is applied in two successive passes:</p>
+<ul>
+<li>first within <code>food_group</code>;</li>
+<li>then within <code>stage_original</code>.</li>
+</ul>
+<p>The original observed value is preserved in <code>loss_percentage_original</code>, while the possibly capped value is kept in <code>loss_percentage</code>.</p>
+<p>This step is intended to reduce the influence of extreme high-loss observations while preserving the overall structure of the data used for estimation.</p>
+</section>
+<section id="saving-model-data-objects-for-prediction" class="level2" data-number="4.7">
+<h2 data-number="4.7" class="anchored" data-anchor-id="saving-model-data-objects-for-prediction"><span class="header-section-number">4.7</span> Saving model-data objects for prediction</h2>
+<p>Before moving to estimation, the plugin saves the final modelling dataset and the auxiliary inputs needed later by the prediction stage.</p>
+<p>These saved objects include:</p>
+<ul>
+<li><code>model_data.qs2</code></li>
+<li><code>prediction_inputs.qs2</code></li>
+<li><code>prediction_meta.qs2</code></li>
+</ul>
+<p>The <code>prediction_inputs</code> object includes:</p>
+<ul>
+<li><code>fbsTree1</code></li>
+<li><code>M49</code></li>
+<li><code>harvest_calendar_imputed</code></li>
+<li><code>GDP_full</code></li>
+<li><code>LPI_full</code></li>
+<li><code>monthly_weather_full</code></li>
+<li><code>FAOCrops</code></li>
+<li><code>prod_support</code></li>
+</ul>
+<p>The file <code>prediction_meta.qs2</code> stores small auxiliary metadata needed during prediction, in particular the number of main coefficient blocks <code>P</code> and the prediction year sequence <code>year_seq</code>.</p>
+<p>This saving step is essential because the prediction plugin later reconstructs its entire prediction environment from these stored objects rather than rebuilding them from scratch.</p>
+</section>
+<section id="bayesian-model-specification-and-prior-structure" class="level2" data-number="4.8">
+<h2 data-number="4.8" class="anchored" data-anchor-id="bayesian-model-specification-and-prior-structure"><span class="header-section-number">4.8</span> Bayesian model specification and prior structure</h2>
+<p>The Bayesian model is written in NIMBLE through the object <code>loss_code</code>.</p>
+<p>The response variable is the complementary log-log transformation of the observed loss percentage:</p>
+<p><span class="math display">\[
+y_i = \operatorname{cloglog}(p_i) = log(-log(1-p_i));\quad  y_i \in \mathbb{R}
+\]</span></p>
+<p>Each transformed observation is modelled as Normally distributed with mean <code>mu[i]</code> and residual standard deviation <code>sigma_y</code>:</p>
+<p><span class="math display">\[
+y_i \sim \mathcal{N}(\mu_i, \sigma_y)
+\]</span> with <span class="math display">\[\begin{aligned} \mu_i &amp;= \sum_{p=1}^P (a1_p + a2_p (region_i) + a3_p (subregion_i) + b1_p (foodgroup_i)) X_{i,p}\\
+&amp;+ \sum_{p=1}^2 (a4_p (country_i) + b2_p (product_i) + b3_p (country_i, foodgroup_i) + b4_p (country_i, product_i) X_{i,p}\\
+&amp;+ c1(stage_i) + c2(datamethod_i) + c3(source_i) \end{aligned}\]</span></p>
+<p>The mean structure is highly hierarchical. It contains:</p>
+<ul>
+<li>a global intercept and global covariate effects;</li>
+<li>level 1 regional effects;</li>
+<li>level 2 regional effects;</li>
+<li>country effects;</li>
+<li>food-group effects;</li>
+<li>product effects;</li>
+<li>food-group-by-country interaction effects;</li>
+<li>product-by-country interaction effects;</li>
+<li>stage effects;</li>
+<li>method effects;</li>
+<li>source effects.</li>
+</ul>
+<p>The continuous covariates entering the model are:</p>
+<ul>
+<li>year;</li>
+<li>rainfall;</li>
+<li>temperature;</li>
+<li>GDP per capita;</li>
+<li>LPI.</li>
+</ul>
+<p>The model distinguishes between parameter blocks that apply to all six main terms of the linear predictor—intercept, year, rain, temperature, GDP, and LPI—and parameter blocks that apply only to the first two terms, namely the intercept and year effects.</p>
+<p>More in detail:</p>
+<ul>
+<li><code>a1</code>, <code>a2</code>, <code>a3</code>, and <code>b1</code> are defined over all six terms and represent global, region, subregion and food group level effects;</li>
+<li><code>a4</code>, <code>b2</code>, <code>b3</code>, and <code>b4</code> are defined only for the intercept and year terms and refer to country, product, country-food group interaction and country-product interaction level effects. This represents partial pooling of information, where group level intercepts and coefficients are modelled hierarchically as draws from a shared distribution, inducing shrinkage - that is, group-level (e.g.&nbsp;country-level) effects are additive deviations from the global effect and are “pulled” toward zero with the degree of shrinkage determined by the relative strength of the data and the group-level variance, helping to stabilize estimates especially for groups with limited data.</li>
+<li><code>c1</code>, <code>c2</code>, and <code>c3</code> represent additional categorical effects for stage, method, and source. More in detail, <code>c1</code> and <code>c2</code> provide additive adjustments to the mean of the model depending on the food supply chain stage and the loss percentage data collection method, respectively. The stage effects are not modelled in any mechanistic way - the model learns overall differences in mean loss percentages at the clogloc level between data points with different supply chain labels. <code>c3</code> is a random effect for the data source, intended to capture dependence between data points from the same source, which could share measurement biases or systematic errors. For instance, in the case <span class="math inline">\(c3 (source_i)\)</span> is negative, that suggests that data points from <span class="math inline">\(source_i\)</span> are lower than otherwise expected according to the model.</li>
+</ul>
+<p>Therefore: - <code>a4</code> represents country-level intercept and year effects;</p>
+<ul>
+<li><p><code>b2</code> represents product-level intercept and year effects;</p></li>
+<li><p><code>b3</code> respresents food-group-country intercept and year efects;</p></li>
+<li><p><code>b4</code> represents product-country intercept and year effects.</p></li>
+</ul>
+<p>This structure allows the model to borrow strength across regions, countries, and products while still permitting substantial heterogeneity.</p>
+<p>The model uses Normal priors for the main coefficient block and half-Cauchy priors for the variance parameters. Specifically, very weakly informative priors are assumed for the global level effects:</p>
+<p><span class="math display">\[a1_p \sim Normal(0,10^2)\]</span></p>
+<p>Therefore global effects and baseline coefficients receive diffuse Normal priors. Hierarchical effects at the region, country, food-group, product, and interaction levels are also modelled through Normal distributions, with scale controlled by higher-level variance parameters. The residual standard deviation <code>sigma_y</code> and several hierarchical standard deviations, such as <code>sigma_a2</code>, <code>sigma_a3</code>, <code>sigma_a4</code>, <code>sigma_b1</code>, <code>sigma_b2</code>, <code>sigma_b3</code>, <code>sigma_b4</code>, and <code>sigma_c3</code>, are given half-Cauchy priors.</p>
+<p><span class="math display">\[a2_p \sim Normal(0, \sigma^2_{a2_p}); \quad \sigma_{a2_p} \sim HalfCauchy (\tau_{a2}) \]</span> In the present implementation <span class="math inline">\(\tau = 1\)</span> is chosen for the broadest group effects (region and food group) and <span class="math inline">\(\tau = 0.5\)</span> for the others ( e.g.&nbsp;subregion, country, product), reflecting a weak a-priori belief that the broadest group effects should be freer to explain more variability.</p>
+<p>The code implements the Half-Cauchy distribution explicitly through custom NIMBLE functions.</p>
+<p>The resulting prior structure supports partial pooling while allowing different components of the hierarchy to vary at different scales.</p>
+</section>
+<section id="construction-of-constants-and-data-for-nimble" class="level2" data-number="4.9">
+<h2 data-number="4.9" class="anchored" data-anchor-id="construction-of-constants-and-data-for-nimble"><span class="header-section-number">4.9</span> Construction of constants and data for NIMBLE</h2>
+<p>After defining the model code, the plugin computes the dimensions needed by NIMBLE, including:</p>
+<ul>
+<li>number of observations;</li>
+<li>number of level 1 regions;</li>
+<li>number of level 2 regions;</li>
+<li>number of food groups;</li>
+<li>number of stages;</li>
+<li>number of methods;</li>
+<li>number of countries;</li>
+<li>number of products;</li>
+<li>number of product-country effects;</li>
+<li>number of basket-country (food-group-country) effects;</li>
+<li>number of sources.</li>
+</ul>
+<p>It then creates <code>loss_constants</code>, which contains both these dimensions and the indexed covariates values used in the model. In parallel, it creates <code>loss_data</code>, which contains the transformed response vector.</p>
+<p>The plugin also defines a random initial-value generator <code>loss_init_fun</code>, used to produce one initialization per MCMC chain.</p>
+</section>
+<section id="mcmc-setup-and-execution" class="level2" data-number="4.10">
+<h2 data-number="4.10" class="anchored" data-anchor-id="mcmc-setup-and-execution"><span class="header-section-number">4.10</span> MCMC setup and execution</h2>
+<p>The core estimation routine is wrapped in <code>loss_model_run_function</code>.</p>
+<p>This function:</p>
+<ul>
+<li>optionally censors test rows for cross-validation use (i.e.&nbsp;the function can be used in a cross-validation mode, where some observations are temporarily hidden from the model and treated as test data);</li>
+<li>rescales the continuous covariates using the observed training rows of that run;</li>
+<li>builds the NIMBLE model;</li>
+<li>compiles the model;</li>
+<li>configures the MCMC monitors;</li>
+<li>replaces selected default samplers with slice samplers;</li>
+<li>uses automated-factor slice samplers for selected parameter blocks; and</li>
+<li>runs the MCMC for one chain.</li>
+</ul>
+<p>The plugin then launches multiple chains in parallel. It first checks the available number of cores, caps the requested worker count if needed, sets the random-number generator to <code>"L'Ecuyer-CMRG"</code>, initializes a parallel cluster, exports the required objects, and ensures that worker library paths match the main process.</p>
+<p>In the current production-oriented version of the code, the model is run with:</p>
+<ul>
+<li><code>n_chains_fit = 4</code></li>
+<li><code>n_iter = 200000</code></li>
+<li><code>n_burnin = 100000</code></li>
+<li><code>n_thin = 50</code></li>
+</ul>
+<p>These settings reflect the intended long MCMC run rather than a quick test run and imply a computationally expensive estimation step in terms of both runtime and resource usage.</p>
+</section>
+<section id="posterior-outputs" class="level2" data-number="4.11">
+<h2 data-number="4.11" class="anchored" data-anchor-id="posterior-outputs"><span class="header-section-number">4.11</span> Posterior outputs</h2>
+<p>Once the MCMC chains have completed, the plugin combines them into:</p>
+<ul>
+<li>a chain-wise <code>mcmc.list</code> object;</li>
+<li>a combined posterior sample matrix <code>fit_combined_samples</code>.</li>
+</ul>
+<p>It then saves the outputs under the <code>Bayesian_food_loss/Saved_models/mcmc_outputs_2026</code> directory.</p>
+<p>The main saved files are:</p>
+<ul>
+<li><code>fit_combined_samples.qs2</code></li>
+<li><code>fit_samples_list_coda.qs2</code></li>
+<li><code>levels_fit.qs2</code></li>
+<li><code>scale_fit.qs2</code></li>
+</ul>
+<p>The <code>levels_fit</code> file stores the factor level mappings used during estimation. This is critical because the prediction stage must reconstruct the same indexing system used by the fitted model.</p>
+<p>The <code>scale_fit</code> file stores the means and standard deviations used for the model covariates during fitting. This is equally critical because the prediction stage must apply the same scaling conventions when generating posterior predictions.</p>
+</section>
+<section id="main-outputs-of-the-fitting-stage" class="level2" data-number="4.12">
+<h2 data-number="4.12" class="anchored" data-anchor-id="main-outputs-of-the-fitting-stage"><span class="header-section-number">4.12</span> Main outputs of the fitting stage</h2>
+<p>The fitting stage produces two categories of outputs.</p>
+<p>The first category consists of modelling and prediction-input objects:</p>
+<ul>
+<li><code>model_data.qs2</code></li>
+<li><code>prediction_inputs.qs2</code></li>
+<li><code>prediction_meta.qs2</code></li>
+</ul>
+<p>The second category consists of posterior outputs and fitted-model metadata:</p>
+<ul>
+<li><code>fit_combined_samples.qs2</code></li>
+<li><code>fit_samples_list_coda.qs2</code></li>
+<li><code>levels_fit.qs2</code></li>
+<li><code>scale_fit.qs2</code></li>
+</ul>
+<p>Together, these files define the transition from estimation to prediction.</p>
+</section>
+<section id="convergence-reporting" class="level2" data-number="4.13">
+<h2 data-number="4.13" class="anchored" data-anchor-id="convergence-reporting"><span class="header-section-number">4.13</span> Convergence reporting</h2>
+<p>At the end of the model fitting stage, the plugin also generates a convergence report based on the saved MCMC chains. This reporting step is separate from the core estimation procedure and is intended to document the convergence behaviour of the monitored posterior parameters.</p>
+<p>The report is constructed from the saved chain object <code>fit_samples_list_coda.qs2</code>. It currently includes two diagnostics:</p>
+<ul>
+<li>Gelman-Rubin potential scale reduction factors (PSRF);</li>
+<li>Geweke z-scores.</li>
+</ul>
+<p>For each monitored parameter, the plugin computes the PSRF point estimate and upper confidence limit, together with summary measures of the Geweke diagnostic across chains. It also computes aggregate indicators such as the proportion of parameters with <code>PSRF &lt;= 1.05</code> and the proportion with maximum absolute Geweke z-score less than or equal to 2.</p>
+<p>The reporting step produces CSV diagnostic tables, including <code>psrf_diagnostics.csv</code> and <code>convergence_diagnostics.csv</code>, and generates an HTML file <code>convergence_report.html</code>. These outputs are saved in the reporting directory under the shared drive.</p>
+<p>In addition, the HTML report is sent by email to the user running the plugin. The report is descriptive and diagnostic in purpose: it does not modify the fitted model or the posterior outputs, but provides an additional layer of post-estimation assessment for the saved MCMC chains.</p>
+</section>
+<section id="schematic-workflow-of-the-model-fitting-plugin" class="level2" data-number="4.14">
+<h2 data-number="4.14" class="anchored" data-anchor-id="schematic-workflow-of-the-model-fitting-plugin"><span class="header-section-number">4.14</span> Schematic workflow of the model fitting plugin</h2>
+<p>The figure below provides a schematic overview of the model fitting plugin. It summarizes the main source inputs, the core processing steps carried out inside the plugin, and the fitted and diagnostic outputs produced for downstream use in the Bayesian food loss workflow.</p>
+<div id="fig:model-fitting-workflow" class="quarto-figure quarto-figure-center anchored">
+<figure class="figure">
+<p><img src="images/model_fit_workflow.png" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>Schematic workflow of the model fitting plugin.</figcaption>
+</figure>
+</div>
+<p>As shown in the Figure, the plugin combines observed loss inputs, structural support objects, and prepared covariates to construct the model training dataset, fit the Bayesian hierarchical model, and save the posterior, prediction-support, and diagnostic outputs required by the prediction stage.</p>
+</section>
+<section id="role-in-the-overall-workflow-1" class="level2" data-number="4.15">
+<h2 data-number="4.15" class="anchored" data-anchor-id="role-in-the-overall-workflow-1"><span class="header-section-number">4.15</span> Role in the overall workflow</h2>
+<p>This stage is the point at which the prepared support objects and covariates are turned into an actual fitted Bayesian model. It consumes the outputs of the covariates preparation stage, applies the modelling rules and data-cleaning logic, estimates the posterior distribution, and saves all the objects required for downstream prediction.</p>
+<p>Because the posterior prediction stage later depends on the exact factor structure, support restrictions, and scaling choices defined here, the fitting stage is not only an estimation step but also the stage in which the operational modelling framework is fixed for the remainder of the workflow.</p>
+</section>
+</section>
+<section id="posterior-prediction-and-output-generation" class="level1" data-number="5">
+<h1 data-number="5"><span class="header-section-number">5</span> Posterior prediction and output generation</h1>
+<p>The posterior prediction and output generation stage is carried out by the SWS plugin <span style="color: red;"><strong>bayesian_food_loss_pred</strong></span>. This stage takes the posterior outputs produced during model fitting, reconstructs the parameter arrays required for prediction, generates posterior predictive values for valid country-product-year combinations, summarizes those predictions through posterior quantiles, reshapes the results into the structure required by the target SWS datasets, and saves the final outputs.</p>
+<p>Operationally, this stage is the point at which the fitted Bayesian model is turned into usable food loss estimates. Unlike the fitting stage, which operates on the observed training dataset, the prediction stage generates outputs over the broader set of valid country-product-year combinations required by the workflow, while still respecting the production-based support restrictions defined earlier in the process. In other words, this stage is responsible not only for generating predictions, but also for enforcing the final prediction support and transforming the output into the official storage format.</p>
+<p>A key feature of this stage is that it does not rebuild the model from scratch. Instead, it relies on the objects saved by the fitting stage, including the posterior sample matrix, the factor level mappings, the scaling constants, and the saved prediction inputs. This design ensures that prediction remains fully aligned with the model that was actually estimated, especially with respect to factor coding, hierarchical indexing, and covariate scaling.</p>
+<p>In this stage, the user must set <code>Food loss estimates (SUA level)</code> as the primary dataset and <code>Food loss estimates (survey level)</code> as the secondary dataset, because the final posterior prediction outputs are saved directly to these two SWS datasets.</p>
+<section id="purpose-2" class="level2" data-number="5.1">
+<h2 data-number="5.1" class="anchored" data-anchor-id="purpose-2"><span class="header-section-number">5.1</span> Purpose</h2>
+<p>The purpose of this stage is to generate and save the posterior food loss estimates implied by the fitted Bayesian model.</p>
+<p>More specifically, the plugin:</p>
+<ul>
+<li>loads the posterior samples and metadata saved during the fitting stage;</li>
+<li>reconstructs the posterior arrays corresponding to the model parameters;</li>
+<li>restores the saved country, product, covariates, and support objects required for prediction;</li>
+<li>completes missing random-effect structures for countries and products not present in the training data;</li>
+<li>generates posterior predictions for valid country-product-year combinations only;</li>
+<li>saves country-level posterior predictive draws in compressed form;</li>
+<li>reconstructs draw-by-draw SUA- and Survey-level predictive outputs;</li>
+<li>computes posterior quantiles for each output cell;</li>
+<li>reshapes the predictions into the SWS output format;</li>
+<li>removes unsupported combinations that remain as missing values; and</li>
+<li>saves the final estimates into the target SWS datasets.</li>
+</ul>
+</section>
+<section id="plugin-inputs-and-prediction-environment" class="level2" data-number="5.2">
+<h2 data-number="5.2" class="anchored" data-anchor-id="plugin-inputs-and-prediction-environment"><span class="header-section-number">5.2</span> Plugin inputs and prediction environment</h2>
+<p>This stage relies almost entirely on objects saved by the fitting stage.</p>
+<p>The main posterior and metadata inputs are loaded from:</p>
+<ul>
+<li><code>fit_combined_samples.qs2</code></li>
+<li><code>scale_fit.qs2</code></li>
+<li><code>levels_fit.qs2</code></li>
+</ul>
+<p>These files provide, respectively, the posterior sample matrix, the scaling constants used for the continuous covariates during fitting, and the factor-level mappings used by the estimated model.</p>
+<p>The plugin also loads the saved prediction inputs and metadata from:</p>
+<ul>
+<li><code>prediction_inputs.qs2</code></li>
+<li><code>prediction_meta.qs2</code></li>
+</ul>
+<p>The <code>prediction_inputs</code> object contains the full collection of support and covariate objects required during prediction, including:</p>
+<ul>
+<li><code>fbsTree1</code></li>
+<li><code>M49</code></li>
+<li><code>harvest_calendar_imputed</code></li>
+<li><code>GDP_full</code></li>
+<li><code>LPI_full</code></li>
+<li><code>monthly_weather_full</code></li>
+<li><code>FAOCrops</code></li>
+<li><code>prod_support</code></li>
+</ul>
+<p>The <code>prediction_meta</code> object stores at least:</p>
+<ul>
+<li>the number of main coefficient blocks <code>P</code>;</li>
+<li>the vector of years used for prediction, <code>year_seq</code>.</li>
+</ul>
+<p>Together, these objects allow the prediction stage to reconstruct the full prediction environment without repeating the preprocessing work carried out earlier in the workflow.</p>
+<!-- ## Restoration of prediction environment -->
+<p>Once the saved objects are loaded, the plugin restores the prediction environment by unpacking <code>prediction_inputs</code> and extracting the metadata fields required later in the code.</p>
+<p>At this point, the prediction stage has access to the country grouping structure, the product support and metadata carried by <code>fbsTree1</code>, the imputed harvest calendar, the covariates, and the production support used to restrict valid combinations. The production support table is normalized to the required variable types and keyed by:</p>
+<ul>
+<li><code>m49_numeric</code></li>
+<li><code>measureditemcpc</code></li>
+<li><code>year</code></li>
+</ul>
+<p>This keyed structure is later used to filter predictions so that unsupported combinations remain outside the final saved results.</p>
+<p>The prediction stage does not necessarily use all posterior draws saved during model fitting. Instead, it selects a subset of posterior samples for prediction, mainly for memory and runtime reasons.</p>
+<p>In the current implementation, the number of predictive draws is controlled by <code>n_sim_pred</code>, which is set to <code>4000</code>. A random subset of rows from the posterior sample matrix is then selected through <code>sample_rows</code>.</p>
+<p>This means that the posterior quantiles saved at the end of the stage are based on this selected subset of posterior draws rather than on the full combined MCMC matrix.</p>
+<!-- ## Reconstruction of posterior parameter arrays -->
+<p>The plugin reconstructs the main posterior coefficient arrays required for prediction by extracting the relevant columns from <code>fit_combined_samples</code>. These include the coefficient blocks <code>a1</code>, <code>a2</code>, <code>a3</code>, <code>a4</code>, <code>b1</code>, <code>b2</code>, <code>b3</code>, <code>b4</code>, and the categorical effect blocks <code>c1</code> and <code>c2</code>.</p>
+<p>The saved posterior matrix also contains additional monitored parameters, including <code>c3</code> and several variance parameters such as <code>sigma_a2</code>, <code>sigma_a3</code>, <code>sigma_a4</code>, <code>sigma_b1</code>, <code>sigma_b2</code>, <code>sigma_b3</code>, <code>sigma_b4</code>, <code>sigma_c3</code>, and <code>sigma_y</code>. In the current prediction code, some of these variance parameters are extracted later when needed for the prediction calculations, while <code>c3</code> is present in the saved posterior output but is not used directly in the final prediction stage.</p>
+<p>The dimensions of these arrays are recovered using the factor-level information stored in <code>levels_fit</code>. This is a critical step, because the prediction stage must use exactly the same indexing system as the fitting stage. If factor levels were reconstructed independently instead of being restored from <code>levels_fit</code>, the posterior coefficients could be assigned to the wrong countries, products, or regions.</p>
+<p>The code also extracts helper level vectors such as:</p>
+<ul>
+<li><code>bc_levels</code> for basket-country effects;</li>
+<li><code>cc_levels</code> for crop-country effects;</li>
+<li><code>method_levels</code> for the method effect.</li>
+</ul>
+<p>These are later used to match posterior interaction effects to the required prediction support.</p>
+</section>
+<section id="completion-of-posterior-effects-for-full-prediction-support" class="level2" data-number="5.3">
+<h2 data-number="5.3" class="anchored" data-anchor-id="completion-of-posterior-effects-for-full-prediction-support"><span class="header-section-number">5.3</span> Completion of posterior effects for full prediction support</h2>
+<p>A crucial task of the prediction stage is to expand the fitted posterior structure to the full prediction support.</p>
+<p>The Bayesian model was fit only on the countries and products represented in the training data. However, prediction may be required for a broader set of countries or products than those that received direct country-level or product-level observations during fitting. For this reason, the plugin explicitly completes some posterior effect arrays before generating predictions.</p>
+<section id="country-effects" class="level3" data-number="5.3.1">
+<h3 data-number="5.3.1" class="anchored" data-anchor-id="country-effects"><span class="header-section-number">5.3.1</span> Country effects</h3>
+<p>The plugin constructs <code>a4_samples_full</code>, which extends the country-level posterior effects to the full set of countries in <code>M49</code>.</p>
+<p>For countries that were present during fitting, the corresponding fitted effects are inserted into the full array. For countries not present in the estimated factor levels, new values are simulated from the corresponding prior-scale structure.</p>
+</section>
+<section id="product-effects" class="level3" data-number="5.3.2">
+<h3 data-number="5.3.2" class="anchored" data-anchor-id="product-effects"><span class="header-section-number">5.3.2</span> Product effects</h3>
+<p>Similarly, the plugin constructs <code>b2_samples_full</code>, which extends the crop-level effects to the full set of products listed in <code>fbsTree1</code>.</p>
+<p>Again, fitted effects are used where available, and simulated values are drawn where the product did not appear in the estimated training data.</p>
+<p>These completion steps are essential because the prediction stage must be able to produce values on a broader support than the subset directly represented in the observed loss data.</p>
+</section>
+</section>
+<section id="prediction-support-and-valid-combinations" class="level2" data-number="5.4">
+<h2 data-number="5.4" class="anchored" data-anchor-id="prediction-support-and-valid-combinations"><span class="header-section-number">5.4</span> Prediction support and valid combinations</h2>
+<p>Although the stage expands the support relative to the training data, it does not generate predictions indiscriminately for every possible country-product-year combination.</p>
+<p>The valid prediction support is determined by the <code>prod_support</code> table carried over from the fitting stage. For each country, the prediction code retrieves the CPC-year combinations that are supported by production data. Unsupported combinations are left as missing in the prediction arrays.</p>
+<p>This is one of the most important operational rules in the whole workflow. It ensures that the final outputs are aligned with actual production support and prevents the workflow from saving estimates for unsupported country-product-year cells.</p>
+</section>
+<section id="country-level-prediction-procedure" class="level2" data-number="5.5">
+<h2 data-number="5.5" class="anchored" data-anchor-id="country-level-prediction-procedure"><span class="header-section-number">5.5</span> Country-level prediction procedure</h2>
+<p>The core predictive computation is implemented in the function <code>pred_function</code>.</p>
+<p>This function predicts one country at a time. For the selected country, it builds a full country-product-year grid by combining:</p>
+<ul>
+<li>all products in <code>fbsTree1</code>;</li>
+<li>all years in <code>year_seq</code>;</li>
+<li>the selected ISO3 code from <code>M49</code>.</li>
+</ul>
+<p>To this grid it joins:</p>
+<ul>
+<li>the product metadata from <code>fbsTree1</code>;</li>
+<li>the country grouping and numeric identifiers from <code>M49</code>;</li>
+<li>the imputed harvest calendar;</li>
+<li>the GDP covariates;</li>
+<li>the LPI covariates;</li>
+<li>the monthly weather covariates matched by harvest month.</li>
+</ul>
+<p>The function then creates scaled versions of the continuous covariates using the means and standard deviations stored in <code>scale_fit</code>. This is essential because the prediction stage must apply the same scaling convention used during fitting.</p>
+<p>In addition, the function keeps the unscaled year in <code>year_raw</code> and creates <code>year_pos</code>, which records the position of each year in the prediction sequence. This makes it possible to write predictions into the correct position of the output arrays.</p>
+</section>
+<section id="construction-of-design-matrices" class="level2" data-number="5.6">
+<h2 data-number="5.6" class="anchored" data-anchor-id="construction-of-design-matrices"><span class="header-section-number">5.6</span> Construction of design matrices</h2>
+<p>Inside <code>pred_function</code>, the plugin constructs two design matrices:</p>
+<ul>
+<li><code>X1</code>, which contains the intercept, year, rain, temperature, GDP, and LPI terms;</li>
+<li><code>X2</code>, which contains the intercept and year terms only.</li>
+</ul>
+<p>This mirrors the structure of the fitted Bayesian model, where some hierarchical effect blocks apply to all six main terms and others apply only to the intercept and year terms.</p>
+<p>The function also pre-allocates <code>mu_array</code>, which stores the posterior predictive means for one country across all retained years and products.</p>
+</section>
+<section id="product-level-posterior-prediction" class="level2" data-number="5.7">
+<h2 data-number="5.7" class="anchored" data-anchor-id="product-level-posterior-prediction"><span class="header-section-number">5.7</span> Product-level posterior prediction</h2>
+<p>The prediction is then computed one product at a time.</p>
+<p>For each product, the function first identifies the appropriate food-group-country and product-country interaction keys, corresponding internally to the <code>basket_country</code> and <code>crop_country</code> effect structures. If the corresponding effect exists in the fitted posterior levels, the stored posterior interaction effect is used. Otherwise, a new value is simulated from the corresponding latent Normal structure and later scaled by the relevant posterior variance parameter.</p>
+<p>The function then determines which years are valid for that product in the selected country by consulting <code>support_years</code>, derived from <code>prod_support</code>. If no valid years exist for that product-country pair, the iteration is skipped.</p>
+<p>For valid rows only, the plugin computes the posterior predictive mean by combining:</p>
+<ul>
+<li>the global effects;</li>
+<li>level 1 regional effects;</li>
+<li>level 2 regional effects;</li>
+<li>food-group effects;</li>
+<li>country effects;</li>
+<li>product effects;</li>
+<li>food-group-country interaction effects;</li>
+<li>product-country interaction effects.</li>
+</ul>
+<p>The resulting values are written into the appropriate positions of <code>mu_array</code>.</p>
+<p>At the end of this process, the function transforms the predictions back from cloglog space to the original loss-percentage scale using <code>icloglog</code>, converts the output to single-precision float format to save memory, and returns the country-level posterior predictive draws.</p>
+<p>Unsupported combinations remain as <code>NA</code>, which is exactly the intended behaviour at this stage.</p>
+<p>The plugin stores the posterior predictive results one country at a time under the directory:</p>
+<ul>
+<li><code>Bayesian_food_loss/Working_samples/COUNTRY</code></li>
+</ul>
+<p>Each country is saved as a separate <code>.qs2</code> file through the helper function <code>save_country</code>. This country-level storage design is motivated by memory constraints: rather than holding the full prediction array for all countries in memory, the plugin saves country-specific predictive objects and later recombines them when needed.</p>
+<p>The country-level posterior predictive files saved under <code>Bayesian_food_loss/Working_samples/COUNTRY</code> are written as single-precision (<code>float32</code>) objects. Although the predictions are generated conceptually as a three-dimensional array over posterior draws, years, and products, they are stored in flattened form in order to reduce memory usage and file size.</p>
+<p>The implementation supports parallel execution on both Unix-like operating systems and Windows, using different parallel backends depending on the platform:</p>
+<ul>
+<li>on Unix systems, it uses <code>mclapply</code>;</li>
+<li>on Windows systems, it uses a PSOCK cluster.</li>
+</ul>
+<p>This allows country-level predictions to be generated in parallel while preserving reproducibility through controlled random-number streams.</p>
+</section>
+<section id="generation-of-draw-by-draw-sua-and-survey-outputs" class="level2" data-number="5.8">
+<h2 data-number="5.8" class="anchored" data-anchor-id="generation-of-draw-by-draw-sua-and-survey-outputs"><span class="header-section-number">5.8</span> Generation of draw-by-draw SUA and Survey outputs</h2>
+<p>After the country-level predictive draws are saved, the plugin reconstructs prediction outputs one posterior draw at a time.</p>
+<p>This is done by reading, for each country, the saved country-level predictive file and extracting the values corresponding to a given posterior draw. These are concatenated into a single buffer that represents one complete draw across all countries, products, and years.</p>
+<p>Two versions of this draw are then saved:</p>
+<ul>
+<li>the SUA-level predictive draw;</li>
+<li>the Survey-level predictive draw.</li>
+</ul>
+<p>The SUA version corresponds directly to the posterior predictive loss values.</p>
+<p>The Survey version is obtained by shifting the SUA draw in cloglog space using the posterior method effect corresponding to <code>"Survey"</code>, that is, using the relevant value extracted from <code>c2_samples</code>. Therefore the Survey output is obtained by applying the posterior method effect for Survey to the baseline SUA-type prediction on the model scale. After the shift, the result is transformed back to the original loss-percentage scale.</p>
+<p>These draw-by-draw outputs are written into:</p>
+<ul>
+<li><code>Bayesian_food_loss/Working_samples/SUA</code></li>
+<li><code>Bayesian_food_loss/Working_samples/Survey</code></li>
+</ul>
+<p>This design makes it possible for later computations to access one posterior draw at a time without loading the full four-dimensional posterior array into memory.</p>
+</section>
+<section id="computation-of-posterior-quantiles" class="level2" data-number="5.9">
+<h2 data-number="5.9" class="anchored" data-anchor-id="computation-of-posterior-quantiles"><span class="header-section-number">5.9</span> Computation of posterior quantiles</h2>
+<p>Once the draw-level predictive objects exist, the plugin computes posterior quantiles country by country from the saved country files.</p>
+<p>It allocates an array <code>full_prediction_quantiles</code> with dimensions corresponding to:</p>
+<ul>
+<li>quantile;</li>
+<li>year;</li>
+<li>product;</li>
+<li>method;</li>
+<li>country.</li>
+</ul>
+<p>For each country, it reads the saved posterior predictive draws and reshapes them into a matrix with rows corresponding to posterior draws and columns corresponding to product-year cells.</p>
+<p>It then computes, for the SUA predictions, the three target posterior quantiles:</p>
+<ul>
+<li><code>CI_lower</code></li>
+<li><code>median</code></li>
+<li><code>CI_upper</code></li>
+</ul>
+<p>The same is done for the Survey predictions, after applying the Survey method shift in cloglog space.</p>
+<p>These quantiles are then inserted into the <code>full_prediction_quantiles</code> array in the appropriate country and method position.</p>
+</section>
+<section id="construction-of-the-quantile-output-table" class="level2" data-number="5.10">
+<h2 data-number="5.10" class="anchored" data-anchor-id="construction-of-the-quantile-output-table"><span class="header-section-number">5.10</span> Construction of the quantile output table</h2>
+<p>After the quantile array is complete, the plugin converts it into a data frame <code>full_prediction_quantiles_df</code>.</p>
+<p>This long-format table contains, for each predicted cell:</p>
+<ul>
+<li>the quantile values;</li>
+<li>the year;</li>
+<li>the product code;</li>
+<li>the prediction method;</li>
+<li>the country ISO3;</li>
+<li>selected descriptive variables joined from <code>M49</code> and <code>fbsTree1</code>.</li>
+</ul>
+<p>This object is then saved under:</p>
+<ul>
+<li><code>full_prediction_quantiles_df_2026.RData</code></li>
+</ul>
+<p>Two filtered versions are also saved separately:</p>
+<ul>
+<li><code>full_prediction_quantiles_SUA_df_2026.RData</code></li>
+<li><code>full_prediction_quantiles_survey_df_2026.RData</code></li>
+</ul>
+<p>These files provide convenient intermediate outputs before the final reshaping into SWS format.</p>
+</section>
+<section id="reshaping-predictions-into-sws-output-structure" class="level2" data-number="5.11">
+<h2 data-number="5.11" class="anchored" data-anchor-id="reshaping-predictions-into-sws-output-structure"><span class="header-section-number">5.11</span> Reshaping predictions into SWS output structure</h2>
+<p>The final prediction table is then reshaped into the format required by the target SWS datasets.</p>
+<p>First, descriptive variables not needed in the final storage structure are removed. Then two standard flags are added:</p>
+<ul>
+<li><code>flagObservationStatus = "I"</code></li>
+<li><code>flagMethod = "e"</code></li>
+</ul>
+<p>Next, the key variables are renamed to match the target dimension names:</p>
+<ul>
+<li><code>year</code> becomes <code>timePointYears</code></li>
+<li><code>measureditemcpc</code> becomes <code>measuredItemSuaFbs</code></li>
+</ul>
+<p>The country identifier is converted back from ISO3 to M49 code using <code>countrycode</code>, with manual corrections for special cases such as Taiwan and <code>XSQ</code>.</p>
+<p>The quantile columns are then melted into a long element dimension <code>measuredElementSuaFbs</code>, and the three quantile labels are mapped to the required element codes:</p>
+<ul>
+<li><code>CI_lower</code> → <code>61211</code></li>
+<li><code>median</code> → <code>5126</code></li>
+<li><code>CI_upper</code> → <code>61212</code></li>
+</ul>
+<p>At the end of this reshaping, the prediction table is split into:</p>
+<ul>
+<li><code>loss_sua</code></li>
+<li><code>loss_survey</code></li>
+</ul>
+<p>These are the two final output tables to be saved into SWS.</p>
+</section>
+<section id="removal-of-unsupported-missing-values" class="level2" data-number="5.12">
+<h2 data-number="5.12" class="anchored" data-anchor-id="removal-of-unsupported-missing-values"><span class="header-section-number">5.12</span> Removal of unsupported missing values</h2>
+<p>Because unsupported product-country-year combinations were intentionally left as <code>NA</code> during prediction, the final reshaped output tables still contain rows with missing <code>Value</code>.</p>
+<p>Before saving to SWS, the plugin explicitly removes these rows:</p>
+<ul>
+<li><code>loss_sua &lt;- loss_sua[!is.na(Value)]</code></li>
+<li><code>loss_survey &lt;- loss_survey[!is.na(Value)]</code></li>
+</ul>
+<p>This step is essential. Without it, the output datasets would contain rows for unsupported combinations that were never intended to be part of the final saved estimates.</p>
+</section>
+<section id="saving-final-results-to-sws-datasets" class="level2" data-number="5.13">
+<h2 data-number="5.13" class="anchored" data-anchor-id="saving-final-results-to-sws-datasets"><span class="header-section-number">5.13</span> Saving final results to SWS datasets</h2>
+<p>The plugin saves the final outputs to two SWS datasets:</p>
+<ul>
+<li><code>food_loss_estimates_sua</code></li>
+<li><code>food_loss_estimates_survey</code></li>
+</ul>
+<p>To do this, it defines a custom helper <code>SaveData</code>, which wraps <code>faosws::SaveData</code> and adds several operational features:</p>
+<ul>
+<li>automatic capping of worker count to available cores;</li>
+<li>duplicate-key detection and removal;</li>
+<li>chunking of the data for parallel saving;</li>
+<li>fallback to sequential saving if multicore execution fails;</li>
+<li>aggregation of inserted, appended, ignored, and discarded counts;</li>
+<li>warning consolidation and performance summaries.</li>
+</ul>
+<p>The output tables are saved in blocks of five years at a time. This chunked-year saving strategy helps control memory usage and reduces the risk of operational problems when writing large outputs.</p>
+</section>
+<section id="final-checks" class="level2" data-number="5.14">
+<h2 data-number="5.14" class="anchored" data-anchor-id="final-checks"><span class="header-section-number">5.14</span> Final checks</h2>
+<p>After the main save operation, the plugin performs a validation step for the survey dataset.</p>
+<p>It reads back the target dataset through a full dataset key, compares the saved survey output to the retrieved survey data, and identifies rows present in the expected output but missing in the stored dataset. If such rows are found, it attempts to save them again.</p>
+<p>This final reconciliation step acts as an operational safeguard and helps ensure that the final survey dataset matches the intended prediction output.</p>
+</section>
+<section id="main-outputs-of-the-prediction-stage" class="level2" data-number="5.15">
+<h2 data-number="5.15" class="anchored" data-anchor-id="main-outputs-of-the-prediction-stage"><span class="header-section-number">5.15</span> Main outputs of the prediction stage</h2>
+<p>The prediction stage produces several categories of outputs.</p>
+<p>The first category consists of intermediate working files used to manage posterior draws efficiently:</p>
+<ul>
+<li>country-level predictive files in <code>Working_samples/COUNTRY</code>;</li>
+<li>draw-level SUA files in <code>Working_samples/SUA</code>;</li>
+<li>draw-level Survey files in <code>Working_samples/Survey</code>.</li>
+</ul>
+<p>The second category consists of posterior quantile outputs:</p>
+<ul>
+<li><code>full_prediction_quantiles_df_2026.RData</code></li>
+<li><code>full_prediction_quantiles_SUA_df_2026.RData</code></li>
+<li><code>full_prediction_quantiles_survey_df_2026.RData</code></li>
+</ul>
+<p>The third category consists of the final SWS outputs:</p>
+<ul>
+<li><code>food_loss_estimates_sua</code></li>
+<li><code>food_loss_estimates_survey</code></li>
+</ul>
+</section>
+<section id="schematic-workflow-of-the-predictions-plugin" class="level2" data-number="5.16">
+<h2 data-number="5.16" class="anchored" data-anchor-id="schematic-workflow-of-the-predictions-plugin"><span class="header-section-number">5.16</span> Schematic workflow of the predictions plugin</h2>
+<p>The figure below provides a schematic overview of the predictions plugin. It summarizes the saved inputs loaded from the fitting stage, the core prediction and output-generation steps carried out inside the plugin, and the local and SWS outputs produced at the end of the Bayesian food loss workflow.</p>
+<div id="fig:predictions-workflow" class="quarto-figure quarto-figure-center anchored">
+<figure class="figure">
+<p><img src="images/pred_workflow.png" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>Schematic workflow of the predictions plugin.</figcaption>
+</figure>
+</div>
+<p>As shown in the Figure above, the plugin loads the saved posterior and prediction-support objects from the fitting stage, reconstructs the prediction environment, generates posterior predictions for valid country-product-year combinations, computes predictive quantiles, and saves both intermediate working files and the final food loss estimates.</p>
+</section>
+<section id="role-in-the-overall-workflow-2" class="level2" data-number="5.17">
+<h2 data-number="5.17" class="anchored" data-anchor-id="role-in-the-overall-workflow-2"><span class="header-section-number">5.17</span> Role in the overall workflow</h2>
+<p>This stage is the final operational step of the Bayesian food loss estimation workflow. It takes the fitted posterior distribution produced during model fitting and transforms it into usable country-product-year food loss estimates, while preserving the support restrictions, factor conventions, and scaling choices defined in earlier stages.</p>
+<p>It is therefore not only a prediction stage, but also the stage in which the workflow produces its final deliverables: the posterior food loss estimates stored in the official SWS output datasets.</p>
+</section>
+</section>
+<section id="main-outputs-of-the-workflow" class="level1" data-number="6">
+<h1 data-number="6"><span class="header-section-number">6</span> Main outputs of the workflow</h1>
+<p>The Bayesian food loss estimation workflow produces several categories of outputs corresponding to different stages of the pipeline. Some of these outputs are intermediate objects used internally by downstream plugins, while others are final datasets intended for storage and operational use within SWS.</p>
+<p>Taken together, these outputs provide the full transition from raw and partially processed inputs to final posterior food loss estimates. They also ensure continuity across the three plugins, since each stage depends on objects prepared and saved by the previous one.</p>
+<section id="intermediate-covariate-outputs" class="level2" data-number="6.1">
+<h2 data-number="6.1" class="anchored" data-anchor-id="intermediate-covariate-outputs"><span class="header-section-number">6.1</span> Intermediate covariate outputs</h2>
+<p>The first category of outputs consists of the processed covariates and support objects produced during the covariates preparation stage.</p>
+<p>These include:</p>
+<ul>
+<li>the <code>M49</code> country grouping table used throughout the workflow;</li>
+<li>the <code>temperature_bayesian</code> datatable;</li>
+<li>the <code>rainfall_bayesian</code> datatable;</li>
+<li>the <code>gdp_bayesian</code> datatable; and</li>
+<li>the <code>lpi_bayesian</code> datatable.</li>
+</ul>
+<p>Together, these outputs define the country grouping structure and the main external covariate layer used later in model fitting and prediction.</p>
+<p>In addition to the SWS datatables, the covariates preparation stage also produces local inspection outputs in the form of wide-format Excel files for the downloaded weather, GDP, and LPI series. These files are not the main operational outputs of the workflow, but they are useful for traceability, validation, and inspection of the raw or reshaped source data.</p>
+</section>
+<section id="model-data-and-posterior-objects" class="level2" data-number="6.2">
+<h2 data-number="6.2" class="anchored" data-anchor-id="model-data-and-posterior-objects"><span class="header-section-number">6.2</span> Model-data and posterior objects</h2>
+<p>The second category of outputs is produced during the model fitting stage and consists of the objects required to reproduce the modelling environment and the fitted posterior structure.</p>
+<p>These outputs include the saved modelling and prediction-input objects:</p>
+<ul>
+<li><code>model_data.qs2</code></li>
+<li><code>prediction_inputs.qs2</code></li>
+<li><code>prediction_meta.qs2</code></li>
+</ul>
+<p>The file <code>model_data.qs2</code> contains the final cleaned and model-ready training dataset. The file <code>prediction_inputs.qs2</code> contains the set of support objects and covariate tables required later during prediction, including the grouping structure, harvest calendar, GDP, LPI, weather covariates, product information, and production support. The file <code>prediction_meta.qs2</code> stores metadata needed for prediction, such as the number of parameter blocks and the prediction year sequence.</p>
+<p>The fitting stage also produces the main posterior outputs:</p>
+<ul>
+<li><code>fit_combined_samples.qs2</code></li>
+<li><code>fit_samples_list_coda.qs2</code></li>
+<li><code>levels_fit.qs2</code></li>
+<li><code>scale_fit.qs2</code></li>
+</ul>
+<p>The file <code>fit_combined_samples.qs2</code> contains the combined posterior sample matrix used directly by the prediction plugin. The file <code>fit_samples_list_coda.qs2</code> preserves the chain-wise MCMC output in coda format and is useful for diagnostics and post-estimation analysis. The file <code>levels_fit.qs2</code> stores the factor-level mappings used during model estimation, while <code>scale_fit.qs2</code> stores the means and standard deviations used to scale the continuous covariates.</p>
+<p>These saved objects are essential because the prediction plugin depends on them to reconstruct the fitted model structure exactly as it was estimated.</p>
+</section>
+<section id="working-prediction-files" class="level2" data-number="6.3">
+<h2 data-number="6.3" class="anchored" data-anchor-id="working-prediction-files"><span class="header-section-number">6.3</span> Working prediction files</h2>
+<p>The third category of outputs consists of the intermediate working files created during the prediction stage in order to manage posterior prediction efficiently.</p>
+<p>These include:</p>
+<ul>
+<li>country-level predictive files stored under <code>Working_samples/COUNTRY</code>;</li>
+<li>draw-level SUA files stored under <code>Working_samples/SUA</code>;</li>
+<li>draw-level Survey files stored under <code>Working_samples/Survey</code>.</li>
+</ul>
+<p>The country-level files store posterior predictive draws one country at a time. This makes the workflow more memory-efficient, since the full multi-country prediction array does not need to be held in memory at once.</p>
+<p>The draw-level SUA and Survey files provide an additional intermediate layer in which one posterior draw at a time is saved across the full prediction support. This structure is particularly useful in workflows where later steps need access to one draw at a time rather than to the full predictive array.</p>
+<p>Although these files are intermediate rather than final deliverables, they are an important part of the operational implementation because they allow the prediction stage to remain computationally feasible.</p>
+</section>
+<section id="posterior-quantile-outputs" class="level2" data-number="6.4">
+<h2 data-number="6.4" class="anchored" data-anchor-id="posterior-quantile-outputs"><span class="header-section-number">6.4</span> Posterior quantile outputs</h2>
+<p>A further category of outputs produced during the prediction stage consists of posterior quantile tables derived from the predictive draws.</p>
+<p>These include:</p>
+<ul>
+<li><code>full_prediction_quantiles_df_2026.RData</code></li>
+<li><code>full_prediction_quantiles_SUA_df_2026.RData</code></li>
+<li><code>full_prediction_quantiles_survey_df_2026.RData</code></li>
+</ul>
+<p>The file <code>full_prediction_quantiles_df_2026.RData</code> contains the combined posterior quantiles for both the SUA and Survey prediction levels. The SUA-only and Survey-only files provide filtered versions of the same output and can be useful for validation, inspection, or downstream handling before the final reshaping into SWS format.</p>
+<p>These files represent a key transition point in the workflow, since they are already expressed in terms of final prediction summaries rather than raw posterior draws, but have not yet been fully reshaped into the official output dataset format.</p>
+</section>
+<section id="final-output-datasets" class="level2" data-number="6.5">
+<h2 data-number="6.5" class="anchored" data-anchor-id="final-output-datasets"><span class="header-section-number">6.5</span> Final output datasets</h2>
+<p>The final category of outputs consists of the food loss estimate datasets saved to SWS.</p>
+<p>These are:</p>
+<ul>
+<li><code>food_loss_estimates_sua</code></li>
+<li><code>food_loss_estimates_survey</code></li>
+</ul>
+<p>These two datasets contain the final posterior food loss estimates in the required SWS structure. They include the country code, item code, year, output element, value, and the associated observation and method flags.</p>
+<p>The saved values correspond to the posterior summary outputs produced by the prediction stage, namely:</p>
+<ul>
+<li>lower credible interval;</li>
+<li>posterior median;</li>
+<li>upper credible interval.</li>
+</ul>
+<p>These outputs are the final deliverables of the workflow and represent the endpoint of the full Bayesian food loss estimation pipeline.</p>
+</section>
+<section id="relationship-between-output-categories" class="level2" data-number="6.6">
+<h2 data-number="6.6" class="anchored" data-anchor-id="relationship-between-output-categories"><span class="header-section-number">6.6</span> Relationship between output categories</h2>
+<p>The different output categories are linked sequentially across the workflow.</p>
+<p>The covariate outputs produced in the first stage are consumed by the fitting stage. The saved modelling and posterior objects produced in the fitting stage are then consumed by the prediction stage. The prediction stage in turn produces both intermediate working files and final posterior quantile tables, which are ultimately reshaped and saved as the final SWS estimate datasets.</p>
+<p>For this reason, the outputs should not be viewed as independent products, but rather as successive layers of the same workflow. Each category plays a distinct role: some outputs support reproducibility and computational efficiency, while others provide the final operational estimates intended for use in SWS.</p>
+</section>
+<section id="summary" class="level2" data-number="6.7">
+<h2 data-number="6.7" class="anchored" data-anchor-id="summary"><span class="header-section-number">6.7</span> Summary</h2>
+<p>In summary, the workflow produces:</p>
+<ul>
+<li>processed covariate and grouping outputs;</li>
+<li>model-ready training and prediction-input objects;</li>
+<li>posterior sample and metadata files;</li>
+<li>intermediate working prediction files;</li>
+<li>posterior quantile tables; and</li>
+<li>final SWS food loss estimate datasets.</li>
+</ul>
+<p>Together, these outputs capture the full progression from data preparation to model estimation and finally to operational posterior food loss estimates.</p>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
