@@ -2,4 +2,5 @@ renv.lock
 clean_test_files/
 clean_test.html
 renv/
- 
+
+/.quarto/

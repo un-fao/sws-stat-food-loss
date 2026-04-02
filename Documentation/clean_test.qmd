@@ -8,6 +8,7 @@ format:
     toc-expand: true
     toc-location: left
     number-sections: true
+    math-method: mathjax  
 editor: source
 ---
 
@@ -57,7 +58,7 @@ The workflow is also designed to separate preparation, estimation, and output ge
 <!-- ## Schematic overview of the Bayesian food loss workflow -->
 
 The figure below provides a schematic overview of the full Bayesian food loss workflow and shows how the three plugins are connected through intermediate objects and final outputs.
-![The general model workflow](images/general_workflow.png){#fig:general_workflow width="100%"}
+![The general model workflow](./images/general_workflow.png){#fig:general_workflow width="100%"}
 In summary, the workflow can be read as a three-step process: first prepare the modelling covariates and country structure, then fit the Bayesian model on the processed training data, and finally use the posterior results to generate and save food loss predictions. The following sections describe each of these three plugins in detail.
 
 # Covariates preparation
