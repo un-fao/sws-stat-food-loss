@@ -8,7 +8,8 @@ format:
     toc-expand: true
     toc-location: left
     number-sections: true
-    math-method: mathjax  
+    math-method: mathjax
+    html-math-method: mathml 
 editor: source
 ---
 
@@ -187,8 +188,9 @@ The Logistics Performance Index covariate is prepared from the World Bank WDI in
 
 After excluding aggregate regions, the plugin joins the LPI observations to the full country-year grid and the smoothed GDP covariate, and then fits a generalized additive model with `mgcv::bam`. The model represents LPI as the sum of a smooth effect of standardized year (`s(year_sc, k = 7)`), a smooth effect of standardized smoothed GDP per capita (`s(sm_GDP_percap_sc)`), a country random intercept (`s(iso3, bs = "re")`), and a country-specific random slope on year (`s(iso3, bs = "re", by = year_sc)`). The smooth term are represented using thin-plate spline basis functions with second-order smoothing penalties. For the year effect, the model uses 7 knots, corresponding to one knot for each year in which observed LPI data are available, while for the smooth effect of smoothed GDP per capita it uses th default basis dimension of 10 knots. The fitted model is then used to predict smoothed LPI values for the full grid of modelling countries and years. More in detail, a single smooth regression modelling approach is implemented:
 
-$$LPI \sim Normal(\beta_0 + f_1 (year) + f_2 (GDPpercapita) + g_1 (country) + g_2(country)\times year, \\
-\sigma^2_{LPI}) $$
+$$
+LPI \sim Normal(\beta_0 + f_1 (year) + f_2 (GDPpercapita) + g_1 (country) + g_2(country)\times year, \sigma^2_{LPI})
+$$
 where $f_1(year)$ and $f_2(GDPpercapita)$ are smooth functions of centered and scaled year and of smooth GDP per capita, and $g_1$ and $g_2$ are country-level random intercepts and slopes of the centred and scaled year. Thus the two smooth functions pool information across countries for which LPI data were available, to allow prediction in countries without LPI, while the random intecepts and slopes allow for a closer fit for interpolation in countries with data for some years.
 
  The resulting smoothed LPI series is stored in `sm_lpi` in the intermediate object `LPI_full`, while the original observed series is retained in `lpi`. In the final output written to SWS, these are saved as `lpi_sm` and `lpi_raw`, respectively.
@@ -548,9 +550,15 @@ Each transformed observation is modelled as Normally distributed with mean `mu[i
 $$
 y_i \sim \mathcal{N}(\mu_i, \sigma_y)
 $$
-with $$\begin{aligned} \mu_i &= \sum_{p=1}^P (a1_p + a2_p (region_i) + a3_p (subregion_i) + b1_p (foodgroup_i)) X_{i,p}\\
-&+ \sum_{p=1}^2 (a4_p (country_i) + b2_p (product_i) + b3_p (country_i, foodgroup_i) + b4_p (country_i, product_i) X_{i,p}\\ 
-&+ c1(stage_i) + c2(datamethod_i) + c3(source_i) \end{aligned}$$
+with
+
+$$
+\begin{aligned}
+\mu_i &= \sum_{p=1}^P (a1_p + a2_p (region_i) + a3_p (subregion_i) + b1_p (foodgroup_i)) X_{i,p}\\
+&+ \sum_{p=1}^2 (a4_p (country_i) + b2_p (product_i) + b3_p (country_i, foodgroup_i) + b4_p (country_i, product_i)) X_{i,p}\\
+&+ c1(stage_i) + c2(datamethod_i) + c3(source_i)
+\end{aligned}
+$$
 
 The mean structure is highly hierarchical. It contains:
 
@@ -1210,6 +1218,3 @@ In summary, the workflow produces:
 - final SWS food loss estimate datasets.
 
 Together, these outputs capture the full progression from data preparation to model estimation and finally to operational posterior food loss estimates.
-
-
-
