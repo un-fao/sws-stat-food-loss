@@ -1,7 +1,3 @@
 
-library("quarto")
-
-# Prevent quarto from trying to open a browser
-Sys.setenv(QUARTO_BROWSER = "none")
-
-quarto::quarto_preview("clean_test.qmd", host = "0.0.0.0", port = 4000, browse = FALSE)
+# quarto preview renders and serves - system() blocks so R stays alive
+system("quarto preview clean_test.qmd --no-browser --no-watch-inputs --host 0.0.0.0 --port 4000 --timeout 0")
