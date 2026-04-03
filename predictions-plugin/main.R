@@ -115,7 +115,8 @@ prod_support[, `:=`(
 setkey(prod_support, m49_numeric, measureditemcpc, year)
 
 
-
+save_dir_final <- file.path(R_SWS_SHARE_PATH, "Bayesian_food_loss", "Saved_models")
+dir.create(save_dir_final, recursive = TRUE, showWarnings = FALSE)
 
 
 #n_sim_pred=4000 #4000
@@ -123,15 +124,6 @@ setkey(prod_support, m49_numeric, measureditemcpc, year)
 #Recreate the posterior arrays exactly as before:
 n_sim_fit <- nrow(fit_combined_samples)
 
-# These depend on model_data levels, which we loaded
-# N_l1 <- length(levels(model_data$region_l1))
-# N_l2 <- length(levels(model_data$region_l2))
-# N_basket <- length(levels(model_data$food_group))
-# N_country <- length(levels(model_data$iso3))
-# N_crop <- length(levels(model_data$crop))
-# N_basket_country <- length(levels(model_data$basket_country))
-# N_crop_country <- length(levels(model_data$crop_country))
-# N_stage <- length(levels(model_data$stage))
 
 
 levels_fit <- qs2::qs_read(file.path(save_dir_post, "levels_fit.qs2"))
@@ -169,29 +161,6 @@ c2_samples <- fit_combined_samples[, grepl("^c2\\[", colnames(fit_combined_sampl
 
 
 
-# # Extract samples for prediction ------------------------------------------
-# 
-# a1_samples <- fit_combined_samples[,grepl("^a1\\[",colnames(fit_combined_samples))]%>%
-#   array(dim=c(n_sim_fit,P))
-# a2_samples <- fit_combined_samples[,grepl("^a2\\[",colnames(fit_combined_samples))]%>%
-#   array(dim=c(n_sim_fit,N_l1,P))
-# a3_samples <- fit_combined_samples[,grepl("^a3\\[",colnames(fit_combined_samples))]%>%
-#   array(dim=c(n_sim_fit,N_l2,P))
-# a4_samples <- fit_combined_samples[,grepl("^a4\\[",colnames(fit_combined_samples))]%>%
-#   array(dim=c(n_sim_fit,N_country,2))
-# 
-# b1_samples <- fit_combined_samples[,grepl("^b1\\[",colnames(fit_combined_samples))]%>%
-#   array(dim=c(n_sim_fit,N_basket,P))
-# b2_samples <- fit_combined_samples[,grepl("^b2\\[",colnames(fit_combined_samples))]%>%
-#   array(dim=c(n_sim_fit,N_crop,2))
-# b3_samples <- fit_combined_samples[,grepl("^b3\\[",colnames(fit_combined_samples))]%>%
-#   array(dim=c(n_sim_fit,N_basket_country,2)) 
-# b4_samples <- fit_combined_samples[,grepl("^b4\\[",colnames(fit_combined_samples))]%>%
-#   array(dim=c(n_sim_fit,N_crop_country,2)) 
-# 
-# c1_samples <- fit_combined_samples[,grepl("^c1\\[",colnames(fit_combined_samples))]%>%
-#   array(dim=c(n_sim_fit,N_stage))
-# c2_samples <- fit_combined_samples[,grepl("^c2\\[",colnames(fit_combined_samples))]
 
 set.seed(3408537)
 sample_rows <- sample(1:n_sim_fit,n_sim_pred,replace = FALSE)
@@ -422,47 +391,7 @@ gc()
 
 
 #pred_float has the dimension n_sim_pred*N_years*N_product_full*N_country_full
-#Lyuba reshapes it back into 4D array
-#pred_arr <- array(
-#  as.numeric(pred_float),
-#  dim = c(n_sim_pred, N_years, N_product_full, N_country_full)
-#)
 
-#dim(pred_arr)
-
-
-###For Lyuba since I couldn't export those huge objects
-#try(stopCluster(par_cluster), silent=TRUE)
-#par_cluster <- makeCluster(5)
-#clusterEvalQ(par_cluster, { library(nimble); NULL })
-
-
-#saveRDS(list(
-#  fit_combined_samples = fit_combined_samples,
-#  a1_samples = a1_samples,
-#   a2_samples = a2_samples,
-#   a3_samples = a3_samples,
-#   a4_samples_full = a4_samples_full,
-#   b1_samples = b1_samples,
-#   b2_samples_full = b2_samples_full,
-#   b3_samples = b3_samples,
-#   b4_samples = b4_samples
-# ), "posterior_draws_test.rds")
-# 
-# 
-# clusterEvalQ(par_cluster, {
-#   posterior <- readRDS("posterior_draws_test.rds")
-#   list2env(posterior, envir = .GlobalEnv)
-#   rm(posterior); gc()
-#   NULL
-# })
-# 
-# 
-# 
-# 
-# # Delete saved prediction files.
-# unlink("Working samples/SUA/*", recursive = FALSE)
-# unlink("Working samples/Survey/*", recursive = FALSE)
 
 # Now we will save SUA and Survey level predictions. We will produce
 # one file per MCMC sample, so that the FLP/FLI functions can access
@@ -595,10 +524,10 @@ full_prediction_quantiles_df <- full_prediction_quantiles %>%
     left_join(select(M49, iso3, country, sdg_region_name, region_l2)) %>%
     left_join(select(fbsTree1, measureditemcpc, gfli_basket))
 
-save(
-    full_prediction_quantiles_df,
-    file = file.path(R_SWS_SHARE_PATH,"Bayesian_food_loss/Saved_models/full_prediction_quantiles_df_2026.RData")
-)
+# save(
+#     full_prediction_quantiles_df,
+#     file = file.path(R_SWS_SHARE_PATH,"Bayesian_food_loss/Saved_models/full_prediction_quantiles_df_2026.RData")
+# )
 
 
 
@@ -606,73 +535,33 @@ save(
 ###SUA
 full_prediction_quantiles_SUA_df <- full_prediction_quantiles_df %>% 
     dplyr::filter(method == "Supply utilization accounts")
-save(
-    full_prediction_quantiles_SUA_df,
-    file = file.path(R_SWS_SHARE_PATH,"Bayesian_food_loss/Saved_models/full_prediction_quantiles_SUA_df_2026.RData")
-)
+# save(
+#     full_prediction_quantiles_SUA_df,
+#     file = file.path(R_SWS_SHARE_PATH,"Bayesian_food_loss/Saved_models/full_prediction_quantiles_SUA_df_2026.RData")
+# )
 
 
 ###Survey
 full_prediction_quantiles_survey_df <- full_prediction_quantiles_df %>% 
     dplyr::filter(method == "Survey")
-save(
-    full_prediction_quantiles_survey_df,
-    file = file.path(R_SWS_SHARE_PATH,"Bayesian_food_loss/Saved_models/full_prediction_quantiles_survey_df_2026.RData")
-)
-
-
-#We need to plot the model_data for plotting only
-#model_data <- qs2::qs_read(file.path(save_dir_data, "model_data.qs2"))
-# # Function to plot predictions and original data points.
-# pred_plot <- function(prediction_quantiles,model_data,plot_cpc,plot_iso3){
-#   method_pal <- brewer.pal(5,"Set1")
-#   ggplot(prediction_quantiles%>%filter(measureditemcpc==plot_cpc,iso3==plot_iso3,method=="Supply utilization accounts"))+
-#     geom_ribbon(aes(x=year,ymin=CI_lower,ymax=CI_upper),alpha=0.25)+
-#     geom_line(aes(x=year,y=median,linetype="Supply utilization\naccounts"))+
-#     geom_line(data=prediction_quantiles%>%filter(measureditemcpc==plot_cpc,iso3==plot_iso3,method=="Survey"),aes(x=year,y=median,linetype="Survey"))+
-#     geom_point(data=filter(model_data,measureditemcpc==plot_cpc,iso3==plot_iso3)%>%
-#                  mutate(stage_original=case_match(stage_original,
-#                                                   "wholesupplychain"~"Whole supply chain",
-#                                                   "farm"~"Farm",
-#                                                   "storage"~"Storage",
-#                                                   "transport"~"Transport",
-#                                                   "processing"~"Processing",
-#                                                   "wholesale"~"Wholesale",
-#                                                   "primaryproduct"~"Primary product")),
-#                aes(x=year,y=loss_percentage,colour=method,shape=stage_original),size=1.5,
-#                show.legend = TRUE)+
-#     labs(title=filter(M49,iso3==plot_iso3)$country,
-#          subtitle=str_to_title(filter(FAOCrops,measureditemcpc==plot_cpc)$crop),
-#          x="Year",y="Loss percentage",shape="Food supply\nchain stage",
-#          colour="Data collection\nmethod")+
-#     scale_y_continuous(labels=scales::label_percent())+
-#     theme_minimal()+
-#     scale_color_manual(values=c("Reference"=method_pal[1],"Modelled estimates"=method_pal[2],
-#                                 "Literature review"=method_pal[4]),
-#                        drop=FALSE)+
-#     scale_shape_manual(values=c("Whole supply chain"=16,
-#                                 "Farm"=15,"Storage"=17,
-#                                 "Transport"=4,"Wholesale"=8,
-#                                 "Processing"=18,"Primary product"=0),drop=FALSE)+
-#     scale_linetype(name="Prediction level")
-# }
-
-# # Example to plot wheat in India.
-# pred_plot(full_prediction_quantiles_df,model_data,
-#           plot_cpc="0111",
-#           plot_iso3="IND")
+# save(
+#     full_prediction_quantiles_survey_df,
+#     file = file.path(R_SWS_SHARE_PATH,"Bayesian_food_loss/Saved_models/full_prediction_quantiles_survey_df_2026.RData")
+# )
 
 
 
-file = file.path(R_SWS_SHARE_PATH,"Bayesian_food_loss/Saved_models/full_prediction_quantiles_df_2026.RData")
+# file = file.path(R_SWS_SHARE_PATH,"Bayesian_food_loss/Saved_models/full_prediction_quantiles_df_2026.RData")
+
+out_all = file.path(save_dir_final, "full_prediction_quantiles_df_2026.RData")
+out_sua = file.path(save_dir_final, "full_prediction_quantiles_SUA_df_2026.RData")
+out_sur = file.path(save_dir_final, "full_prediction_quantiles_survey_df_2026.RData")
+
+save(full_prediction_quantiles_df, file = out_all)
+save(full_prediction_quantiles_SUA_df, file = out_sua)
+save(full_prediction_quantiles_survey_df, file = out_sur)
 
 
-save_dir_post <- file.path(R_SWS_SHARE_PATH,"Bayesian_food_loss","Saved_models","mcmc_outputs_2026")
-save_dir_data <- file.path(R_SWS_SHARE_PATH,"Bayesian_food_loss","Model_data")
-
-fit_combined_samples <- qs2::qs_read(file.path(save_dir_post, "fit_combined_samples.qs2"))
-
-scale_fit          <- qs2::qs_read(file.path(save_dir_post, "scale_fit.qs2"))
 
 #Now combine the prediction code with the Output saving code Charlotte prepared
 #losses <- load("NewModelData/full_prediction_quantiles_df_19_01_26.RData")
