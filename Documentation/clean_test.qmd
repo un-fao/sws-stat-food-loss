@@ -13,7 +13,7 @@ format:
 editor: source
 ---
 
-# Introduction 
+# Introduction
 
 This document describes the current implementation of the Bayesian food loss estimation workflow developed in R for use within the FAO Statistical Working System (SWS). The workflow has been designed to support the preparation, estimation, prediction, and saving of Bayesian food loss estimates in a modular way, so that the different stages of the process can be run, checked, and updated separately.
 

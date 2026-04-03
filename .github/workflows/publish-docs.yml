@@ -32,6 +32,7 @@ jobs:
           mkdir -p _site
           cp Documentation/clean_test.html _site/index.html
           cp -r Documentation/images _site/images
+          cp -r Documentation/clean_test_files _site/clean_test_files
 
       - uses: actions/upload-pages-artifact@v3
         with:
