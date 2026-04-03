@@ -22,11 +22,7 @@
 #########################################################
 
 
-#########################################################
-#########################################################
-#Temperature and Precipitations
-#########################################################
-#########################################################
+
 suppressPackageStartupMessages({
     library(faosws)
     library(data.table)
@@ -182,7 +178,7 @@ dt[, sdg_subregion_l1_code := fcase(
     
     sdg_region_code == "747", "747",                            # NAfrica + WAsia together at L1
     
-    sdg_region_code == "9.04" & m49_subregion_code == "53", "21",  # Aus/NZ -> Northern America (your rule)
+    sdg_region_code == "9.04" & m49_subregion_code == "53", "21",  # Aus/NZ -> Northern America (our rule)
     sdg_region_code == "9.04", "543",        
     
     sdg_region_code == "419", "419",                            # LAC
@@ -311,6 +307,10 @@ M49 = M49[!is.na(iso3) & iso3!=""]
 M49[, region_l1 := sdg_subregion_l1]
 M49[, region_l2 := sdg_subregion_l2]
 
+
+
+
+# Considering the years provided by the user
 start_year = as.numeric(ifelse(
     is.null(swsContext.computationParams$start_year),
     "1991",
@@ -337,6 +337,13 @@ dir.create(out_dir, recursive = "TRUE", showWarnings = FALSE)
 ###############
 #Weather covariates
 ###############
+
+#########################################################
+#########################################################
+#Temperature and Precipitations
+#########################################################
+#########################################################
+
 
 #The API URL 
 url <- "https://cckpapi.worldbank.org/api/v1/cru-x0.5_timeseries_tas,pr_timeseries_monthly_1901-2024_mean_historical_cru_ts4.09_mean/global_countries?_format=json"
@@ -637,6 +644,7 @@ WB_GDP = gdp_pc_ppp %>%
 
 ########################################
 ########################################
+#GDP from IMF
 base = "https://www.imf.org/external/datamapper/api/v1"
 
 # helper: fetch + parse JSON using curl (wget-like headers)

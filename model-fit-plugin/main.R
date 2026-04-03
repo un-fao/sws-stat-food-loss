@@ -463,9 +463,6 @@ updatemodel <- TRUE
 subnationalestimates <- TRUE
 #lossDataset <- swsContext.datasets[[1]]@dataset
 
-domain_loss = "Loss and Waste"
-dataset_loss = "loss_sdg"
-
 message("Updatemodel: ", updatemodel)
 message("Subnationalestimates: ", subnationalestimates)
 message('SelectedYear: ', paste(selectedYear, collapse = ', '))
