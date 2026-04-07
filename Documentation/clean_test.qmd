@@ -171,7 +171,7 @@ The resulting GDP series is then smoothed separately by country using a Generali
 
 $$log(GDPpercapita) \sim Normal(\alpha_0 + f(year), \sigma^2_{GDP})$$
 
-where $f(year)$ is a smooth function of time. A log transformation on the left-hand side of the equation is used so that the distribution of the model residulas is closer to the assumed Normal distribution and so that the model cannot predict negative GDp per capita values. This model is implemented in the `mgcv` package in `R`, with a cubic spline basis assumed for $f(year)$. For each country, the number of knots for $f(year)$ is specified as the number of years for which GDP per capita estimates are available, divided by four and rounded up.
+where $f(year)$ is a smooth function of time. A log transformation on the left-hand side of the equation is used so that the distribution of the model residuals is closer to the assumed Normal distribution and so that the model cannot predict negative GDp per capita values. This model is implemented in the `mgcv` package in `R`, with a cubic spline basis assumed for $f(year)$. For each country, the number of knots for $f(year)$ is specified as the number of years for which GDP per capita estimates are available, divided by four and rounded up.
 
 The smoothed series is stored in the variable `sm_GDP_percap`, while the unsmoothed combined series is kept as `GDP_percap`. Remaining missing smoothed values are imputed using the mean within `region_l2` and year.
 
@@ -186,12 +186,13 @@ The final GDP output is written to the SWS datatable `gdp_bayesian`, using the v
 
 The Logistics Performance Index covariate is prepared from the World Bank WDI indicator `LP.LPI.OVRL.XQ`. The plugin downloads the raw series for all available countries and years, saves a wide-format extract locally, and then reshapes the data into long format.
 
-After excluding aggregate regions, the plugin joins the LPI observations to the full country-year grid and the smoothed GDP covariate, and then fits a generalized additive model with `mgcv::bam`. The model represents LPI as the sum of a smooth effect of standardized year (`s(year_sc, k = 7)`), a smooth effect of standardized smoothed GDP per capita (`s(sm_GDP_percap_sc)`), a country random intercept (`s(iso3, bs = "re")`), and a country-specific random slope on year (`s(iso3, bs = "re", by = year_sc)`). The smooth term are represented using thin-plate spline basis functions with second-order smoothing penalties. For the year effect, the model uses 7 knots, corresponding to one knot for each year in which observed LPI data are available, while for the smooth effect of smoothed GDP per capita it uses th default basis dimension of 10 knots. The fitted model is then used to predict smoothed LPI values for the full grid of modelling countries and years. More in detail, a single smooth regression modelling approach is implemented:
+After excluding aggregate regions, the plugin joins the LPI observations to the full country-year grid and the smoothed GDP covariate, and then fits a generalized additive model with `mgcv::bam`. The model represents LPI as the sum of a smooth effect of standardized year (`s(year_sc, k = 7)`), a smooth effect of standardized smoothed GDP per capita (`s(sm_GDP_percap_sc)`), a country random intercept (`s(iso3, bs = "re")`), and a country-specific random slope on year (`s(iso3, bs = "re", by = year_sc)`). The smooth term are represented using thin-plate spline basis functions with second-order smoothing penalties. For the year effect, the model uses 7 knots, corresponding to one knot for each year in which observed LPI data are available, while for the smooth effect of smoothed GDP per capita it uses the default basis dimension of 10 knots. The fitted model is then used to predict smoothed LPI values for the full grid of modelling countries and years. More in detail, a single smooth regression modelling approach is implemented:
 
 $$
 LPI \sim Normal(\beta_0 + f_1 (year) + f_2 (GDPpercapita) + g_1 (country) + g_2(country)\times year, \sigma^2_{LPI})
 $$
-where $f_1(year)$ and $f_2(GDPpercapita)$ are smooth functions of centered and scaled year and of smooth GDP per capita, and $g_1$ and $g_2$ are country-level random intercepts and slopes of the centred and scaled year. Thus the two smooth functions pool information across countries for which LPI data were available, to allow prediction in countries without LPI, while the random intecepts and slopes allow for a closer fit for interpolation in countries with data for some years.
+
+where $f_1(year)$ and $f_2(GDPpercapita)$ are smooth functions of centered and scaled year and of smooth GDP per capita, and $g_1$ and $g_2$ are country-level random intercepts and slopes of the centered and scaled year. Thus the two smooth functions pool information across countries for which LPI data were available, to allow prediction in countries without LPI, while the random intecepts and slopes allow for a closer fit for interpolation in countries with data for some years.
 
  The resulting smoothed LPI series is stored in `sm_lpi` in the intermediate object `LPI_full`, while the original observed series is retained in `lpi`. In the final output written to SWS, these are saved as `lpi_sm` and `lpi_raw`, respectively.
 
@@ -237,7 +238,7 @@ In operational terms, this stage sits at the center of the workflow. The previou
 
 A particularly important feature of this stage is that it combines several different sources of information that were not originally stored in a single unified structure. The observed food loss data, the product reference information, the country groupings, the production support, the harvest calendar, the weather covariates, the GDP covariate, and the LPI covariate all enter the workflow separately. The fitting plugin assembles them into one modelling dataset and then applies a sequence of preprocessing rules intended to reduce duplication, remove invalid support, harmonize labels, and improve the statistical quality of the final estimation input. Here, product reference information refers to the tables that describe and classify products, mainly the mappings between CPC item codes, crop or product names, and food-group groupings used in the model, such as `FAOCrops` and `fbsTree1`.
 
-Even though the outputs of this plugin are saved on the shared drive and not written directly to the final SWS estimate datasets, the user is still required to set *Food loss estimates (SUA level)* as the involved dataset in the plugin configuration.
+Even though the outputs of this plugin are saved on the shared drive and not written directly to the final SWS estimate datasets, the user is still required to set `Food loss estimates (SUA level)` as the involved dataset in the plugin configuration.
 
 ## Purpose
 
@@ -740,7 +741,7 @@ The posterior prediction and output generation stage is carried out by the SWS p
 
 Operationally, this stage is the point at which the fitted Bayesian model is turned into usable food loss estimates. Unlike the fitting stage, which operates on the observed training dataset, the prediction stage generates outputs over the broader set of valid country-product-year combinations required by the workflow, while still respecting the production-based support restrictions defined earlier in the process. In other words, this stage is responsible not only for generating predictions, but also for enforcing the final prediction support and transforming the output into the official storage format.
 
-A key feature of this stage is that it does not rebuild the model from scratch. Instead, it relies on the objects saved by the fitting stage, including the posterior sample matrix, the factor level mappings, the scaling constants, and the saved prediction inputs. This design ensures that prediction remains fully aligned with the model that was actually estimated, especially with respect to factor coding, hierarchical indexing, and covariate scaling.
+A key feature of this stage is that it does not rebuild the model from scratch. Instead, it relies on the objects saved by the fitting stage, including the posterior sample matrix, the factor level mappings, the scaling constants, and the saved prediction inputs. This design ensures that prediction remains fully aligned with the model that was actually estimated, especially with respect to the preserved factor level order, the numeric indices used to link observations to hierarchical effect arrays, and the scaling applied to continuous covariates.
 
 In this stage, the user must set `Food loss estimates (SUA level)` as the primary dataset and `Food loss estimates (survey level)` as the secondary dataset, because the final posterior prediction outputs are saved directly to these two SWS datasets.
 
@@ -790,7 +791,7 @@ The `prediction_inputs` object contains the full collection of support and covar
 - `FAOCrops`
 - `prod_support`
 
-The `prediction_meta` object stores at least:
+The `prediction_meta` object stores:
 
 - the number of main coefficient blocks `P`;
 - the vector of years used for prediction, `year_seq`.
@@ -801,7 +802,7 @@ Together, these objects allow the prediction stage to reconstruct the full predi
 
 Once the saved objects are loaded, the plugin restores the prediction environment by unpacking `prediction_inputs` and extracting the metadata fields required later in the code.
 
-At this point, the prediction stage has access to the country grouping structure, the product support and metadata carried by `fbsTree1`, the imputed harvest calendar, the covariates, and the production support used to restrict valid combinations. The production support table is normalized to the required variable types and keyed by:
+At this point, the prediction stage has access to the country grouping structure and to the product support and classification variables carried by `fbsTree1`, the imputed harvest calendar, the covariates, and the production support used to restrict valid combinations. The production support table is normalized to the required variable types and keyed by:
 
 - `m49_numeric`
 - `measureditemcpc`
@@ -871,7 +872,7 @@ This function predicts one country at a time. For the selected country, it build
 
 To this grid it joins:
 
-- the product metadata from `fbsTree1`;
+- the product information and food-group classification from `fbsTree1`;
 - the country grouping and numeric identifiers from `M49`;
 - the imputed harvest calendar;
 - the GDP covariates;
@@ -924,7 +925,7 @@ The plugin stores the posterior predictive results one country at a time under t
 
 Each country is saved as a separate `.qs2` file through the helper function `save_country`. This country-level storage design is motivated by memory constraints: rather than holding the full prediction array for all countries in memory, the plugin saves country-specific predictive objects and later recombines them when needed.
 
-The country-level posterior predictive files saved under `Bayesian_food_loss/Working_samples/COUNTRY` are written as single-precision (`float32`) objects. Although the predictions are generated conceptually as a three-dimensional array over posterior draws, years, and products, they are stored in flattened form in order to reduce memory usage and file size.
+As noted earlier, the country-level posterior predictive files saved under `Bayesian_food_loss/Working_samples/COUNTRY` are written as single-precision (`float32`) objects. Although the predictions are generated conceptually as a three-dimensional array over posterior draws, years, and products, they are stored in flattened form in order to reduce memory usage and file size.
 
 The implementation supports parallel execution on both Unix-like operating systems and Windows, using different parallel backends depending on the platform:
 
@@ -1032,7 +1033,7 @@ At the end of this reshaping, the prediction table is split into:
 
 These are the two final output tables to be saved into SWS.
 
-## Removal of unsupported missing values
+<!-- ## Removal of unsupported missing values -->
 
 Because unsupported product-country-year combinations were intentionally left as `NA` during prediction, the final reshaped output tables still contain rows with missing `Value`.
 
@@ -1041,7 +1042,7 @@ Before saving to SWS, the plugin explicitly removes these rows:
 - `loss_sua <- loss_sua[!is.na(Value)]`
 - `loss_survey <- loss_survey[!is.na(Value)]`
 
-This step is essential. Without it, the output datasets would contain rows for unsupported combinations that were never intended to be part of the final saved estimates.
+Without this step, the output datasets would contain rows for unsupported combinations that were never intended to be part of the final saved estimates.
 
 ## Saving final results to SWS datasets
 
