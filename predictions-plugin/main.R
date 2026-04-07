@@ -81,7 +81,7 @@ main_libpaths <- .libPaths()
 ######
 
 # Number of samples to predict with (due to memory limitations).
-n_sim_pred <- 4
+n_sim_pred <- 4000
 
 
 
