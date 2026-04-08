@@ -74,6 +74,27 @@ if (faosws::CheckDebug()) {
 
 
 R_SWS_SHARE_PATH <- Sys.getenv("R_SWS_SHARE_PATH")
+ALT_PRIOR_ROOT <- file.path(R_SWS_SHARE_PATH, "Bayesian_food_loss", "Alternative_prior")
+
+save_dir_post  <- file.path(ALT_PRIOR_ROOT, "Saved_models", "mcmc_outputs_2026")
+save_dir_data  <- file.path(ALT_PRIOR_ROOT, "Model_data")
+save_dir_final <- file.path(ALT_PRIOR_ROOT, "Saved_models")
+dir_working    <- file.path(ALT_PRIOR_ROOT, "Working_samples")
+
+if (!dir.exists(ALT_PRIOR_ROOT)) {
+    stop("Alternative_prior folder does not exist: ", ALT_PRIOR_ROOT)
+}
+if (!dir.exists(save_dir_post)) {
+    stop("Missing fitted-model folder: ", save_dir_post)
+}
+if (!dir.exists(save_dir_data)) {
+    stop("Missing model-data folder: ", save_dir_data)
+}
+if (!dir.exists(save_dir_final)) {
+    stop("Missing Saved_models folder: ", save_dir_final)
+}
+
+
 
 main_libpaths <- .libPaths()
 #######
@@ -83,10 +104,6 @@ main_libpaths <- .libPaths()
 # Number of samples to predict with (due to memory limitations).
 n_sim_pred <- 4000
 
-
-
-save_dir_post <- file.path(R_SWS_SHARE_PATH,"Bayesian_food_loss","Saved_models","mcmc_outputs_2026")
-save_dir_data <- file.path(R_SWS_SHARE_PATH,"Bayesian_food_loss","Model_data")
 
 fit_combined_samples <- qs2::qs_read(file.path(save_dir_post, "fit_combined_samples.qs2"))
 
@@ -113,10 +130,6 @@ prod_support[, `:=`(
     measureditemcpc = as.character(measureditemcpc)
 )]
 setkey(prod_support, m49_numeric, measureditemcpc, year)
-
-
-save_dir_final <- file.path(R_SWS_SHARE_PATH, "Bayesian_food_loss", "Saved_models")
-dir.create(save_dir_final, recursive = TRUE, showWarnings = FALSE)
 
 
 #n_sim_pred=4000 #4000
@@ -341,8 +354,16 @@ RNGkind("L'Ecuyer-CMRG")
 set.seed(12345)
 
 # where to store per-country prediction vectors
-dir_country <- file.path(R_SWS_SHARE_PATH,"Bayesian_food_loss","Working_samples","COUNTRY")
-dir.create(dir_country, recursive = TRUE, showWarnings = FALSE)
+if (!dir.exists(dir_working)) {
+    dir.create(dir_working, recursive = TRUE, showWarnings = FALSE)
+}
+
+dir_country <- file.path(dir_working, "COUNTRY")
+if (!dir.exists(dir_country)) {
+    dir.create(dir_country, recursive = TRUE, showWarnings = FALSE)
+}
+
+
 
 save_country <- function(X) {
     out_file <- file.path(dir_country, paste0("pred_country_", M49$iso3[X], ".qs2"))
@@ -398,12 +419,17 @@ gc()
 # them one at a time later. This is necessary to limit memory usage.
 # Directories
 # --- SAVE SUA & SURVEY FILES DRAW-BY-DRAW ---------------------
+dir_country  <- file.path(dir_working, "COUNTRY")
+out_dir_sua  <- file.path(dir_working, "SUA")
+out_dir_surv <- file.path(dir_working, "Survey")
 
-dir_country  <- file.path(R_SWS_SHARE_PATH,"Bayesian_food_loss","Working_samples","COUNTRY")
-out_dir_sua  <- file.path(R_SWS_SHARE_PATH,"Bayesian_food_loss","Working_samples","SUA")
-out_dir_surv <- file.path(R_SWS_SHARE_PATH,"Bayesian_food_loss","Working_samples","Survey")
-dir.create(out_dir_sua,  recursive=TRUE, showWarnings=FALSE)
-dir.create(out_dir_surv, recursive=TRUE, showWarnings=FALSE)
+if (!dir.exists(out_dir_sua)) {
+    dir.create(out_dir_sua, recursive = TRUE, showWarnings = FALSE)
+}
+if (!dir.exists(out_dir_surv)) {
+    dir.create(out_dir_surv, recursive = TRUE, showWarnings = FALSE)
+}
+
 
 country_files <- file.path(dir_country, paste0("pred_country_", M49$iso3, ".qs2"))
 if (!all(file.exists(country_files))) {
@@ -472,7 +498,7 @@ gc()
 
 # Full prediction quantiles (from per-country files) ----------------------
 
-dir_country <- file.path(R_SWS_SHARE_PATH,"Bayesian_food_loss","Working_samples","COUNTRY")
+dir_country <- file.path(dir_working, "COUNTRY")
 country_files <- file.path(dir_country, paste0("pred_country_", M49$iso3, ".qs2"))
 
 probs <- c(0.025, 0.5, 0.975)
@@ -565,11 +591,7 @@ save(full_prediction_quantiles_survey_df, file = out_sur)
 
 #Now combine the prediction code with the Output saving code Charlotte prepared
 #losses <- load("NewModelData/full_prediction_quantiles_df_19_01_26.RData")
-losses <- load(file.path(
-    R_SWS_SHARE_PATH,
-    "Bayesian_food_loss", "Saved_models",
-    "full_prediction_quantiles_df_2026.RData"
-))
+losses <- load(file.path(save_dir_final, "full_prediction_quantiles_df_2026.RData"))
 head(full_prediction_quantiles_df)
 setDT(full_prediction_quantiles_df)
 names(full_prediction_quantiles_df)

@@ -90,6 +90,9 @@ if (faosws::CheckDebug()) {
 
 R_SWS_SHARE_PATH <- Sys.getenv("R_SWS_SHARE_PATH")
 
+ALT_PRIOR_ROOT <- file.path(R_SWS_SHARE_PATH, "Bayesian_food_loss", "Alternative_prior")
+dir.create(ALT_PRIOR_ROOT, recursive = TRUE, showWarnings = FALSE)
+
 start_year = as.numeric(ifelse(
     is.null(swsContext.computationParams$start_year),
     "1991",
@@ -1168,7 +1171,7 @@ FullSet <- merge(FullSet, FAOCrops[, c("measureditemcpc", "crop"), with = FALSE]
 # FULLSET IS A PART OF MY TRAINING DATA
 ############################
 
-save_dir <- file.path(R_SWS_SHARE_PATH, "Bayesian_food_loss", "Inputs")
+save_dir <- file.path(ALT_PRIOR_ROOT, "Inputs")
 dir.create(save_dir, recursive = TRUE, showWarnings = FALSE)
 save(FAOCrops, file = file.path(save_dir, "FAOCrops.RData"))
 save(CropCalendar,file = file.path(save_dir, "CropCalendar.RData"))
@@ -1445,7 +1448,7 @@ M49[, l2_num := as.numeric(as.factor(region_l2))]
 M49[, m49_numeric := as.numeric(m49_country_code)]
 
 
-write_excel_csv(M49,file=file.path(R_SWS_SHARE_PATH,"Bayesian_food_loss/M49.csv"))
+write_excel_csv(M49, file = file.path(ALT_PRIOR_ROOT, "M49.csv"))
 
 #we need to consider only the production
 from_elem = "5510"
@@ -1946,7 +1949,7 @@ table(model_data$stage_original)/nrow(model_data)
 
 
 ###Saving the model data and everything that will be used for predictions phase
-save_dir_model_data <- file.path(R_SWS_SHARE_PATH, "Bayesian_food_loss", "Model_data")
+save_dir_model_data <- file.path(ALT_PRIOR_ROOT, "Model_data")
 dir.create(save_dir_model_data, recursive = TRUE, showWarnings = FALSE)
 
 qs2::qs_save(model_data, file.path(save_dir_model_data, "model_data.qs2"))
@@ -1966,7 +1969,7 @@ qs2::qs_save(pred_inputs, file.path(save_dir_model_data, "prediction_inputs.qs2"
 
 
 # Some paper plots --------------------------------------------------------
-save_plots_dir <- file.path(R_SWS_SHARE_PATH, "Bayesian_food_loss", "Plots")
+save_plots_dir <- file.path(ALT_PRIOR_ROOT, "Plots")
 dir.create(save_plots_dir, recursive = TRUE, showWarnings = FALSE)
 # GDP and LPI examples.
 jamaica_gdp <- ggplot(GDP_full%>%filter(country=="Jamaica"))+
@@ -1987,6 +1990,25 @@ ggsave(gridExtra::arrangeGrob(jamaica_gdp,lith_lpi,nrow=1),file=file.path(save_p
 
 
 
+# ------------------------------------------------------------
+# Alternative prior for global effects a1
+# Estimated from the final model_data used in the fit
+# ------------------------------------------------------------
+cloglog_link = function(p) log(-log(1 - p))
+
+z_all = cloglog_link(model_data$loss_percentage)
+
+intercept_mean = median(z_all, na.rm = TRUE)
+intercept_sd   = IQR(z_all, na.rm = TRUE) / 1.349
+
+# optional floor so it does not become too tight
+intercept_sd = max(intercept_sd, 0.5)
+
+P = 6
+a1_prior_mean = c(intercept_mean, 0, 0, 0, 0, 0)
+a1_prior_sd   = c(intercept_sd, 1, 1, 1, 1, 1)
+
+message("Empirical prior for a1[1]: N(", round(intercept_mean, 3), ", ", round(intercept_sd, 3), "^2)")
 
 
 # Half-cauchy distribution function.
@@ -1998,6 +2020,10 @@ dhalf_cauchy <- nimbleFunction(run=function(x=double(0),scale=double(0),log=inte
         return(log(2)-log(pi)+log(scale)-log(x^2+scale^2))
     }
 })
+
+
+
+
 
 # Half-cauchy simulation function.
 rhalf_cauchy <- nimbleFunction(run = function(n = integer(0), scale = double(0)) {
@@ -2043,7 +2069,7 @@ loss_code <- nimbleCode({
     
     for(p in 1:6){
         # Global effects.
-        a1[p] ~ dnorm(0,sd=10)
+        a1[p] ~ dnorm(a1_prior_mean[p], sd = a1_prior_sd[p])
         # Level 1 subregion effects.
         for(r in 1:N_l1) a2[r,p] ~ dnorm(0,sd=sigma_a2[p])
         # Level 2 subregion effects.
@@ -2145,7 +2171,9 @@ loss_constants <- list(N=N,P=P,N_l1=N_l1,N_l2=N_l2,N_basket=N_basket,
                        rain=log(model_data$rainfall_mean+1),
                        temp=model_data$temperature_mean,
                        gdp=model_data$sm_GDP_percap,
-                       lpi=model_data$sm_lpi
+                       lpi=model_data$sm_lpi,
+                       a1_prior_mean = a1_prior_mean,
+                       a1_prior_sd   = a1_prior_sd
 )
 
 loss_data <- list(y=cloglog(model_data$loss_percentage))
@@ -2344,7 +2372,7 @@ fit_samples_list <- list(samples=as.mcmc.list(lapply(fit_samples_list,function(x
 fit_combined_samples <- do.call("rbind",fit_samples_list$samples)
 n_sim_fit <- nrow(fit_combined_samples)
 
-save_dir <- file.path(R_SWS_SHARE_PATH, "Bayesian_food_loss", "Saved_models", "mcmc_outputs_2026")
+save_dir <- file.path(ALT_PRIOR_ROOT, "Saved_models", "mcmc_outputs_2026")
 dir.create(save_dir, recursive = TRUE, showWarnings = FALSE)
 
 # Save ALL posterior draws (parameters) as a matrix (fast for prediction)
@@ -2402,11 +2430,11 @@ qs2::qs_save(scale_fit, file.path(save_dir, "scale_fit.qs2"))
 library(htmltools)
 library(sendmailR)
 library(base64enc)
-save_dir = file.path(R_SWS_SHARE_PATH, "Bayesian_food_loss", "Saved_models", "mcmc_outputs_2026")
+save_dir = file.path(ALT_PRIOR_ROOT, "Saved_models", "mcmc_outputs_2026")
 fit_samples_list = qs2::qs_read(file.path(save_dir, "fit_samples_list_coda.qs2"))
 
 
-report_dir = file.path(R_SWS_SHARE_PATH, "Bayesian_food_loss", "Convergence_report")
+report_dir = file.path(ALT_PRIOR_ROOT, "Convergence_report")
 dir.create(report_dir, recursive = TRUE, showWarnings = FALSE)
 
 #Potential Scale Reduction Factor
