@@ -2409,6 +2409,160 @@ fit_samples_list = qs2::qs_read(file.path(save_dir, "fit_samples_list_coda.qs2")
 report_dir = file.path(R_SWS_SHARE_PATH, "Bayesian_food_loss", "Convergence_report")
 dir.create(report_dir, recursive = TRUE, showWarnings = FALSE)
 
+
+
+coef_labels_6 = c("intercept", "year", "rainfall", "temperature", "GDP", "LPI")
+coef_labels_2 = c("intercept", "year")
+
+get_idx = function(x, pattern) {
+    m = regmatches(x, regexec(pattern, x))[[1]]
+    if (length(m) == 0) return(NULL)
+    as.integer(m[-1])
+}
+
+decode_parameter = function(param, levels_fit) {
+    
+    idx = get_idx(param, "^a1\\[(\\d+)\\]$")
+    if (!is.null(idx)) {
+        return(sprintf("Global effect; coefficient = %s",
+                       coef_labels_6[idx[1]]))
+    }
+    
+    idx = get_idx(param, "^a2\\[(\\d+),\\s*(\\d+)\\]$")
+    if (!is.null(idx)) {
+        return(sprintf("Level-1 region effect; region_l1 = '%s'; coefficient = %s",
+                       levels_fit$region_l1[idx[1]], coef_labels_6[idx[2]]))
+    }
+    
+    idx = get_idx(param, "^a3\\[(\\d+),\\s*(\\d+)\\]$")
+    if (!is.null(idx)) {
+        return(sprintf("Level-2 region effect; region_l2 = '%s'; coefficient = %s",
+                       levels_fit$region_l2[idx[1]], coef_labels_6[idx[2]]))
+    }
+    
+    idx = get_idx(param, "^a4\\[(\\d+),\\s*(\\d+)\\]$")
+    if (!is.null(idx)) {
+        m49_code = as.character(levels_fit$country_m49[idx[1]])
+        country_label = M49$country[match(m49_code, as.character(M49$m49_numeric))]
+        
+        if (is.na(country_label) || length(country_label) == 0) {
+            country_label = m49_code
+        }
+        
+        return(sprintf("Country effect; country = '%s' (M49 %s); coefficient = %s",
+                       country_label, m49_code, coef_labels_2[idx[2]]))
+    }
+    
+    idx = get_idx(param, "^b1\\[(\\d+),\\s*(\\d+)\\]$")
+    if (!is.null(idx)) {
+        return(sprintf("Food-group effect; food_group = '%s'; coefficient = %s",
+                       levels_fit$food_group[idx[1]], coef_labels_6[idx[2]]))
+    }
+    
+    idx = get_idx(param, "^b2\\[(\\d+),\\s*(\\d+)\\]$")
+    if (!is.null(idx)) {
+        return(sprintf("Product effect; crop = '%s'; coefficient = %s",
+                       levels_fit$crop[idx[1]], coef_labels_2[idx[2]]))
+    }
+    
+    idx = get_idx(param, "^c1\\[(\\d+)\\]$")
+    if (!is.null(idx)) {
+        return(sprintf("Stage effect; stage = '%s'",
+                       levels_fit$stage[idx[1]]))
+    }
+    
+    idx = get_idx(param, "^c2\\[(\\d+)\\]$")
+    if (!is.null(idx)) {
+        return(sprintf("Method effect; method = '%s'",
+                       levels_fit$method[idx[1]]))
+    }
+    
+    idx = get_idx(param, "^c3\\[(\\d+)\\]$")
+    if (!is.null(idx)) {
+        return(sprintf("Source effect; source = '%s'",
+                       levels_fit$source[idx[1]]))
+    }
+    
+    idx = get_idx(param, "^sigma_a2\\[(\\d+)\\]$")
+    if (!is.null(idx)) {
+        return(sprintf("SD of level-1 region effects; coefficient = %s",
+                       coef_labels_6[idx[1]]))
+    }
+    
+    idx = get_idx(param, "^sigma_a3\\[(\\d+)\\]$")
+    if (!is.null(idx)) {
+        return(sprintf("SD of level-2 region effects; coefficient = %s",
+                       coef_labels_6[idx[1]]))
+    }
+    
+    idx = get_idx(param, "^sigma_a4\\[(\\d+)\\]$")
+    if (!is.null(idx)) {
+        return(sprintf("SD of country effects; coefficient = %s",
+                       coef_labels_2[idx[1]]))
+    }
+    
+    idx = get_idx(param, "^sigma_b1\\[(\\d+)\\]$")
+    if (!is.null(idx)) {
+        return(sprintf("SD of food-group effects; coefficient = %s",
+                       coef_labels_6[idx[1]]))
+    }
+    
+    idx = get_idx(param, "^sigma_b2\\[(\\d+)\\]$")
+    if (!is.null(idx)) {
+        return(sprintf("SD of product effects; coefficient = %s",
+                       coef_labels_2[idx[1]]))
+    }
+    
+    idx = get_idx(param, "^b3\\[(\\d+),\\s*(\\d+)\\]$")
+    if (!is.null(idx)) {
+        key = levels_fit$basket_country[idx[1]]
+        m = regmatches(key, regexec("^(.*)\\s+([0-9]+)$", key))[[1]]
+        
+        food_group_label = m[2]
+        m49_code = m[3]
+        country_label = M49$country[match(m49_code, as.character(M49$m49_numeric))]
+        
+        if (is.na(country_label) || length(country_label) == 0) {
+            country_label = m49_code
+        }
+        
+        return(sprintf(
+            "Food-group-by-country effect; food_group = '%s'; country = '%s'; coefficient = %s",
+            food_group_label, country_label, coef_labels_2[idx[2]]
+        ))
+    }
+    
+    idx = get_idx(param, "^b4\\[(\\d+),\\s*(\\d+)\\]$")
+    if (!is.null(idx)) {
+        key = levels_fit$crop_country[idx[1]]
+        m = regmatches(key, regexec("^(.*)\\s+([0-9]+)$", key))[[1]]
+        
+        cpc_code = m[2]
+        m49_code = m[3]
+        
+        country_label = M49$country[match(m49_code, as.character(M49$m49_numeric))]
+        if (is.na(country_label) || length(country_label) == 0) {
+            country_label = m49_code
+        }
+        
+        crop_label = FAOCrops$crop[match(cpc_code, FAOCrops$measureditemcpc)]
+        if (is.na(crop_label) || length(crop_label) == 0) {
+            crop_label = cpc_code
+        }
+        
+        return(sprintf(
+            "Product-by-country effect; product = '%s'; country = '%s'; coefficient = %s",
+            crop_label, country_label, coef_labels_2[idx[2]]
+        ))
+    }
+    
+    if (param == "sigma_c3") return("SD of source effects")
+    if (param == "sigma_y")  return("Residual SD")
+    
+    return(NA_character_)
+}
+
+
 #Potential Scale Reduction Factor
 uni_psrf = lapply(
     colnames(fit_samples_list$samples[[1]]),
@@ -2434,6 +2588,14 @@ psrf_df = data.frame(
 prop_psrf_105 = mean(psrf_df$psrf_point <= 1.05, na.rm = TRUE)
 #proportion of psrf less than 1.05
 
+
+psrf_df$meaning = vapply(
+    psrf_df$parameter,
+    decode_parameter,
+    character(1),
+    levels_fit = levels_fit
+)
+
 # Save CSV 
 write.csv(
     psrf_df,
@@ -2441,14 +2603,17 @@ write.csv(
     row.names = FALSE
 )
 
+psrf_df = psrf_df[order(-psrf_df$psrf_point), ]
+top_psrf_df = head(
+    psrf_df[, c("parameter", "meaning", "psrf_point", "psrf_upper")],
+    50
+)
 
-# Show the worst parameters first
-psrf_df = psrf_df[order(-psrf_df$psrf_point), ] #sort from largest to smallest.
-top_psrf_df = head(psrf_df, 50)
 
-fmt_num = function(x, digits = 3) {
-    ifelse(is.na(x), "NA", formatC(x, digits = digits, format = "f"))
-}
+
+
+
+
 
 
 
@@ -2491,13 +2656,27 @@ geweke_df = data.frame(
     stringsAsFactors = FALSE
 )
 
-prop_geweke_2 = mean(geweke_df$geweke_max_abs_z <= 2, na.rm = TRUE)
+prop_geweke_2 = mean(geweke_df$geweke_mean_abs_z <= 2, na.rm = TRUE)
 #proportion of parameters whose Geweke diagnostic looks acceptable under the chosen threshold of 2
+geweke_df$meaning = vapply(
+    geweke_df$parameter,
+    decode_parameter,
+    character(1),
+    levels_fit = levels_fit
+)
+
+
+
 
 ###########################################################################
 # Merge diagnostics
 ###########################################################################
-diag_df = merge(psrf_df, geweke_df, by = "parameter", all = TRUE)
+diag_df = merge(
+    psrf_df[, c("parameter", "meaning", "psrf_point", "psrf_upper")],
+    geweke_df[, c("parameter", "geweke_mean_abs_z", "geweke_max_abs_z")],
+    by = "parameter",
+    all = TRUE
+)
 
 write.csv(
     diag_df,
@@ -2507,10 +2686,17 @@ write.csv(
 
 # Worst parameters first
 psrf_df = psrf_df[order(-psrf_df$psrf_point), ]
-top_psrf_df = head(psrf_df, 50)
+top_psrf_df = head(
+    psrf_df[, c("parameter", "meaning", "psrf_point", "psrf_upper")],
+    50
+)
 
-geweke_df = geweke_df[order(-geweke_df$geweke_max_abs_z), ]
-top_geweke_df = head(geweke_df, 50)
+geweke_df = geweke_df[order(-geweke_df$geweke_mean_abs_z), ]
+top_geweke_df = head(
+    geweke_df[, c("parameter", "meaning", "geweke_mean_abs_z", "geweke_max_abs_z")],
+    50
+)
+
 
 fmt_num = function(x, digits = 3) {
     ifelse(is.na(x), "NA", formatC(x, digits = digits, format = "f"))
@@ -2528,14 +2714,15 @@ html_table_from_df = function(df) {
     )
     
     rows = apply(df, 1, function(r) {
-        cells = paste0(
-            "<td>", htmltools::htmlEscape(as.character(r[1])), "</td>",
-            paste(
-                vapply(r[-1], function(v) {
+        cells = paste(
+            mapply(function(v, nm) {
+                if (nm %in% c("psrf_point", "psrf_upper", "geweke_mean_abs_z", "geweke_max_abs_z")) {
                     paste0("<td>", fmt_num(as.numeric(v), 3), "</td>")
-                }, character(1)),
-                collapse = ""
-            )
+                } else {
+                    paste0("<td>", htmltools::htmlEscape(as.character(v)), "</td>")
+                }
+            }, r, names(df), SIMPLIFY = TRUE),
+            collapse = ""
         )
         paste0("<tr>", cells, "</tr>")
     })
@@ -2556,15 +2743,15 @@ report_doc = htmltools::tags$html(
         htmltools::tags$meta(charset = "utf-8"),
         htmltools::tags$title("Bayesian food loss model - convergence report"),
         htmltools::tags$style(htmltools::HTML("
-      body { font-family: Arial, Helvetica, sans-serif; margin: 32px; color: #222; line-height: 1.5; }
-      h1, h2, h3 { color: #1f3b5b; }
-      table, th, td { border: 1px solid #d9d9d9; }
-      table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
-      th, td { padding: 8px; text-align: left; font-size: 13px; vertical-align: top; }
-      th { background: #f3f6fa; }
-      code { background: #f7f7f7; padding: 2px 4px; border-radius: 3px; }
-      ul { margin-top: 0.3em; }
-    "))
+            body { font-family: Arial, Helvetica, sans-serif; margin: 32px; color: #222; line-height: 1.5; }
+            h1, h2, h3 { color: #1f3b5b; }
+            table, th, td { border: 1px solid #d9d9d9; }
+            table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+            th, td { padding: 8px; text-align: left; font-size: 13px; vertical-align: top; }
+            th { background: #f3f6fa; }
+            code { background: #f7f7f7; padding: 2px 4px; border-radius: 3px; }
+            ul { margin-top: 0.3em; }
+        "))
     ),
     htmltools::tags$body(
         htmltools::tags$h1("Bayesian food loss model - convergence report"),
@@ -2612,13 +2799,17 @@ report_doc = htmltools::tags$html(
         htmltools::tags$h2("How to read the tables"),
         htmltools::tags$p(
             "The sections below show the ",
-            htmltools::tags$b("worst values"),
+            htmltools::tags$b("50 worst values"),
             ", meaning the parameters with the highest PSRF values or the highest Geweke values."
         ),
         htmltools::tags$ul(
             htmltools::tags$li(
                 htmltools::tags$code("parameter"),
-                ": the model parameter name as stored in the MCMC output."
+                ": the original parameter name as stored in the MCMC output."
+            ),
+            htmltools::tags$li(
+                htmltools::tags$code("meaning"),
+                ": decoded interpretation of the parameter, showing the corresponding group label and coefficient."
             ),
             htmltools::tags$li(
                 htmltools::tags$code("psrf_point"),
@@ -2639,7 +2830,6 @@ report_doc = htmltools::tags$html(
                 ": maximum absolute Geweke z-score across chains."
             )
         ),
-        
         htmltools::tags$p(
             "The tables labelled ",
             htmltools::tags$b("Worst PSRF values"),
@@ -2650,7 +2840,7 @@ report_doc = htmltools::tags$html(
             "The PSRF table is ordered from the largest ",
             htmltools::tags$code("psrf_point"),
             " downward, while the Geweke table is ordered from the largest ",
-            htmltools::tags$code("geweke_max_abs_z"),
+            htmltools::tags$code("geweke_mean_abs_z"),
             " downward."
         ),
         htmltools::tags$p(
@@ -2658,154 +2848,147 @@ report_doc = htmltools::tags$html(
             "PSRF focuses on agreement across chains, whereas Geweke focuses on within-chain stability between the beginning and the end of the chain."
         ),
         
+        htmltools::tags$h2("Decoded parameter legend"),
+        htmltools::tags$p(
+            "The ",
+            htmltools::tags$code("parameter"),
+            " column reports the original parameter name stored in the MCMC output. The ",
+            htmltools::tags$code("meaning"),
+            " column provides the decoded interpretation, using the corresponding labels for regions, countries, stages, methods, and other indexed effects."
+        ),
         
-        htmltools::tags$h2("How to read parameter names"),
         htmltools::tags$p(
-            "Parameter names come directly from the NIMBLE model object. ",
-            "They follow the array structure used in the model code, so the name indicates both ",
-            htmltools::tags$i("which block of effects"),
-            " the parameter belongs to and ",
-            htmltools::tags$i("which index"),
-            " inside that block is being referenced."
+            "In indexed coefficient families, the second index ",
+            htmltools::tags$code("p"),
+            " identifies which coefficient is being referred to. For parameter families defined over all six main terms (",
+            htmltools::tags$code("a1"),
+            ", ",
+            htmltools::tags$code("a2"),
+            ", ",
+            htmltools::tags$code("a3"),
+            ", ",
+            htmltools::tags$code("b1"),
+            "), ",
+            htmltools::tags$code("p = 1"),
+            " is the intercept, ",
+            htmltools::tags$code("p = 2"),
+            " is year, ",
+            htmltools::tags$code("p = 3"),
+            " is rainfall, ",
+            htmltools::tags$code("p = 4"),
+            " is temperature, ",
+            htmltools::tags$code("p = 5"),
+            " is GDP, and ",
+            htmltools::tags$code("p = 6"),
+            " is LPI. For parameter families defined only for intercept and year (",
+            htmltools::tags$code("a4"),
+            ", ",
+            htmltools::tags$code("b2"),
+            ", ",
+            htmltools::tags$code("b3"),
+            ", ",
+            htmltools::tags$code("b4"),
+            "), ",
+            htmltools::tags$code("p = 1"),
+            " is the intercept and ",
+            htmltools::tags$code("p = 2"),
+            " is year."
         ),
-        htmltools::tags$p(
-            "The coefficient index used in several parameter families is:",
-            " ",
-            htmltools::tags$code("1 = intercept"),
-            ", ",
-            htmltools::tags$code("2 = year"),
-            ", ",
-            htmltools::tags$code("3 = rainfall"),
-            ", ",
-            htmltools::tags$code("4 = temperature"),
-            ", ",
-            htmltools::tags$code("5 = GDP"),
-            ", ",
-            htmltools::tags$code("6 = LPI"),
-            "."
-        ),
+        
         htmltools::tags$ul(
-            htmltools::tags$li(
-                htmltools::tags$code("a1[p]"),
-                ": global coefficient for covariate or intercept index ",
-                htmltools::tags$code("p"),
-                ". Example: ",
-                htmltools::tags$code("a1[6]"),
-                " is the global LPI effect."
-            ),
-            htmltools::tags$li(
-                htmltools::tags$code("a2[r,p]"),
-                ": level-1 regional effect for region ",
-                htmltools::tags$code("r"),
-                " and coefficient ",
-                htmltools::tags$code("p"),
-                ". Example: ",
-                htmltools::tags$code("a2[2,6]"),
-                " is the level-1 regional adjustment to the LPI effect for the second level-1 region."
-            ),
-            htmltools::tags$li(
-                htmltools::tags$code("a3[r,p]"),
-                ": level-2 subregional effect for subregion ",
-                htmltools::tags$code("r"),
-                " and coefficient ",
-                htmltools::tags$code("p"),
-                "."
-            ),
+            htmltools::tags$li(htmltools::tags$code("a1[p]"), ": global effect."),
+            htmltools::tags$li(htmltools::tags$code("a2[r,p]"), ": level-1 region effect."),
+            htmltools::tags$li(htmltools::tags$code("a3[r,p]"), ": level-2 region effect."),
             htmltools::tags$li(
                 htmltools::tags$code("a4[c,p]"),
-                ": country-level effect for country index ",
-                htmltools::tags$code("c"),
-                " and coefficient ",
-                htmltools::tags$code("p"),
-                ". In this model, country effects are defined only for intercept and year."
+                ": country effect; the decoded country name is shown directly in the ",
+                htmltools::tags$code("meaning"),
+                " column."
             ),
-            htmltools::tags$li(
-                htmltools::tags$code("b1[g,p]"),
-                ": food-group effect for food group ",
-                htmltools::tags$code("g"),
-                " and coefficient ",
-                htmltools::tags$code("p"),
-                "."
-            ),
-            htmltools::tags$li(
-                htmltools::tags$code("b2[i,p]"),
-                ": product effect for product ",
-                htmltools::tags$code("i"),
-                " and coefficient ",
-                htmltools::tags$code("p"),
-                ". In this model, product effects are defined only for intercept and year."
-            ),
-            htmltools::tags$li(
-                htmltools::tags$code("b3[i,p]"),
-                ": country-food-group interaction effect. These are included only for intercept and year effects."
-            ),
-            
-            htmltools::tags$li(
-                htmltools::tags$code("b4[i,p]"),
-                ": country-product interaction effect. These are included only for intercept and year effects."
-            ),
-            htmltools::tags$li(
-                htmltools::tags$code("c1[s]"),
-                ": additive effect of supply-chain stage ",
-                htmltools::tags$code("s"),
-                "."
-            ),
-            htmltools::tags$li(
-                htmltools::tags$code("c2[m]"),
-                ": additive effect of data-collection method ",
-                htmltools::tags$code("m"),
-                "."
-            ),
-            htmltools::tags$li(
-                htmltools::tags$code("c3[s]"),
-                ": additive effect of data source ",
-                htmltools::tags$code("s"),
-                "."
-            )
+            htmltools::tags$li(htmltools::tags$code("b1[g,p]"), ": food-group effect."),
+            htmltools::tags$li(htmltools::tags$code("b2[i,p]"), ": product effect."),
+            htmltools::tags$li(htmltools::tags$code("b3[i,p]"), ": food-group-by-country interaction effect."),
+            htmltools::tags$li(htmltools::tags$code("b4[i,p]"), ": product-by-country interaction effect."),
+            htmltools::tags$li(htmltools::tags$code("c1[s]"), ": stage effect."),
+            htmltools::tags$li(htmltools::tags$code("c2[m]"), ": method effect."),
+            htmltools::tags$li(htmltools::tags$code("c3[s]"), ": source effect.")
         ),
+        
+        
         htmltools::tags$p(
-            "The numeric indices correspond to the factor levels used when the model was fitted. ",
-            "For example, in ",
-            htmltools::tags$code("a2[2,6]"),
-            ", the first index refers to the second level-1 region in the factor ordering used by the model, and the second index identifies coefficient 6, which is the LPI effect."
-        ),
-        htmltools::tags$p(
-            "Some baseline effects are fixed deterministically in the model, for example ",
+            "Baseline effects such as ",
             htmltools::tags$code("c1[1]"),
             ", ",
             htmltools::tags$code("c2[1]"),
             ", and ",
             htmltools::tags$code("c3[1]"),
-            ". These baseline parameters are set to zero by construction and therefore are not associated with sampled variation in the chains in the same way as the stochastic parameters."
+            " are fixed to zero by construction."
+        ),
+        
+        htmltools::tags$p(
+            "Detailed index tables for region, stage, and method labels are reported in the Appendix."
         ),
         
         htmltools::tags$h2("Worst PSRF values"),
         htmltools::tags$p(
-            "These are the parameters with the highest PSRF values in the fitted model."
+            "These are the parameters with the 50 highest PSRF values in the fitted model."
         ),
         html_table_from_df(top_psrf_df),
         
         htmltools::tags$h2("Worst Geweke values"),
         htmltools::tags$p(
-            "Geweke z-scores are summarized here across chains using both the mean absolute z-score and the maximum absolute z-score for each parameter (the ranking is based on the maximum abs z-score)."
+            "Geweke z-scores are computed separately for each chain. For each parameter, the report shows the mean absolute Geweke z-score across chains (",
+            htmltools::tags$code("geweke_mean_abs_z"),
+            ") and the largest absolute Geweke z-score observed in any chain (",
+            htmltools::tags$code("geweke_max_abs_z"),
+            "). Larger absolute values indicate greater disagreement between the early and late parts of a chain. The ranking is based on ",
+            htmltools::tags$code("geweke_mean_abs_z")
         ),
-        html_table_from_df(top_geweke_df),
         
+        html_table_from_df(top_geweke_df),
         
         htmltools::tags$h2("Summary"),
         htmltools::tags$ul(
             htmltools::tags$li(sprintf("Proportion with PSRF <= 1.05: %s", fmt_num(prop_psrf_105, 3))),
-            htmltools::tags$li(sprintf("Proportion with max |Geweke z| <= 2: %s", fmt_num(prop_geweke_2, 3)))
+            htmltools::tags$li(sprintf("Proportion with mean |Geweke z| <= 2: %s", fmt_num(prop_geweke_2, 3)))
+        ),
+    
+        htmltools::tags$h2("Appendix"),
+        htmltools::tags$h3("Level-1 region index"),
+        html_table_from_df(data.frame(
+            index = seq_along(levels_fit$region_l1),
+            region_l1 = levels_fit$region_l1,
+            stringsAsFactors = FALSE
+        )),
+        
+        htmltools::tags$h3("Level-2 region index"),
+        html_table_from_df(data.frame(
+            index = seq_along(levels_fit$region_l2),
+            region_l2 = levels_fit$region_l2,
+            stringsAsFactors = FALSE
+        )),
+        
+        htmltools::tags$h3("Stage index"),
+        html_table_from_df(data.frame(
+            index = seq_along(levels_fit$stage),
+            stage = levels_fit$stage,
+            stringsAsFactors = FALSE
+        )),
+        
+        htmltools::tags$h3("Method index"),
+        html_table_from_df(data.frame(
+            index = seq_along(levels_fit$method),
+            method = levels_fit$method,
+            stringsAsFactors = FALSE
+        )),
         )
-    )
 )
-
 
 
 
 report_path = file.path(report_dir, "convergence_report.html")
 
-htmltools::save_html(report_doc, file = report_path)
+htmltools::save_html(report_doc, file = "convergence_report.html")
 
 
 # Retrieve the path to the output folder.
