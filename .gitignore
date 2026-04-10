@@ -2,3 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
+/Food-loss-plot-shiny/.Rprofile
+/Food-loss-plot-shiny/renv/
+
