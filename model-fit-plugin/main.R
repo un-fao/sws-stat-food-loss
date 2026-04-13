@@ -517,15 +517,6 @@ UB <- 0.65
 # Flags for estimates
 estflag <- c( "I;ec", "I;m", "I;es", "I;e", "I;i", "I;esr", "I;ecr") # CHA: Added 'I;i' to estimated flags 
 
-# For aggregating the subnational using the markov function,
-# at present there is only the option for averaging the
-# subnational estimates by stage. but could be altered in the
-# future to model subnational-stages as functions
-MarkovOpt <- "aveatFSP" # "model"
-
-## This option is how the clusters are arranged. At the moment the best performing cluster was based on FBS Food Groups for estimation
-## This is not an option for the SWS user for consistency of estimates, should only be used to test the differences in estimates
-HierarchicalCluster <- "foodgroupname" # "isocode", "SDG.Regions"
 
 ############### Connection to the SWS ###########################################
 
