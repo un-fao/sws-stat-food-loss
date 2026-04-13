@@ -3,6 +3,7 @@ library(data.table)
 library(ggplot2)
 library(DT)
 library(scales)
+library("renv")
 
 
 load("/sws-shared-drive/Bayesian_food_loss/Saved_models/full_prediction_quantiles_df_2026.RData")
@@ -330,4 +331,11 @@ server = function(input, output, session) { #session only in the case I will nee
   )
 }
 
-shinyApp(ui = ui, server = server)
+app <- shinyApp(ui = ui, server = server)
+tryCatch({
+  runApp(app, host = '0.0.0.0', port = 8080)
+}, error = function(e) {
+  log_msg(paste("ERROR: Failed to start app -", e$message))
+  stop(e)
+})
+
