@@ -24,6 +24,41 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
@@ -118,7 +153,30 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#posterior-quantile-outputs" id="toc-posterior-quantile-outputs" class="nav-link" data-scroll-target="#posterior-quantile-outputs"><span class="header-section-number">6.4</span> Posterior quantile outputs</a></li>
   <li><a href="#final-output-datasets" id="toc-final-output-datasets" class="nav-link" data-scroll-target="#final-output-datasets"><span class="header-section-number">6.5</span> Final output datasets</a></li>
   <li><a href="#relationship-between-output-categories" id="toc-relationship-between-output-categories" class="nav-link" data-scroll-target="#relationship-between-output-categories"><span class="header-section-number">6.6</span> Relationship between output categories</a></li>
-  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary"><span class="header-section-number">6.7</span> Summary</a></li>
+  </ul></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary"><span class="header-section-number">7</span> Summary</a></li>
+  <li><a href="#alternative-methods" id="toc-alternative-methods" class="nav-link" data-scroll-target="#alternative-methods"><span class="header-section-number">8</span> Alternative methods</a>
+  <ul class="collapse">
+  <li><a href="#bayesian-hierarchical-method-with-alternative-priors" id="toc-bayesian-hierarchical-method-with-alternative-priors" class="nav-link" data-scroll-target="#bayesian-hierarchical-method-with-alternative-priors"><span class="header-section-number">8.1</span> Bayesian hierarchical method with alternative priors</a>
+  <ul class="collapse">
+  <li><a href="#alternative-prior-specification" id="toc-alternative-prior-specification" class="nav-link" data-scroll-target="#alternative-prior-specification"><span class="header-section-number">8.1.1</span> Alternative prior specification</a></li>
+  </ul></li>
+  <li><a href="#frequentist-benchmark-gaussian-gam-with-random-effects" id="toc-frequentist-benchmark-gaussian-gam-with-random-effects" class="nav-link" data-scroll-target="#frequentist-benchmark-gaussian-gam-with-random-effects"><span class="header-section-number">8.2</span> Frequentist benchmark: Gaussian GAM with random effects</a>
+  <ul class="collapse">
+  <li><a href="#model-specification" id="toc-model-specification" class="nav-link" data-scroll-target="#model-specification"><span class="header-section-number">8.2.1</span> Model specification</a></li>
+  <li><a href="#interpretation-of-the-model-components" id="toc-interpretation-of-the-model-components" class="nav-link" data-scroll-target="#interpretation-of-the-model-components"><span class="header-section-number">8.2.2</span> Interpretation of the model components</a></li>
+  <li><a href="#selection-of-the-spline-basis-dimensions" id="toc-selection-of-the-spline-basis-dimensions" class="nav-link" data-scroll-target="#selection-of-the-spline-basis-dimensions"><span class="header-section-number">8.2.3</span> Selection of the spline basis dimensions</a></li>
+  <li><a href="#handling-of-random-effects-in-the-bayesian-model-and-the-gaussian-gamm" id="toc-handling-of-random-effects-in-the-bayesian-model-and-the-gaussian-gamm" class="nav-link" data-scroll-target="#handling-of-random-effects-in-the-bayesian-model-and-the-gaussian-gamm"><span class="header-section-number">8.2.4</span> Handling of random effects in the Bayesian model and the Gaussian GAMM</a></li>
+  <li><a href="#prediction-and-comparability-with-the-bayesian-model" id="toc-prediction-and-comparability-with-the-bayesian-model" class="nav-link" data-scroll-target="#prediction-and-comparability-with-the-bayesian-model"><span class="header-section-number">8.2.5</span> Prediction and comparability with the Bayesian model</a></li>
+  </ul></li>
+  </ul></li>
+  <li><a href="#comparison-of-flp-and-fli-across-alternative-food-loss-estimation-methods" id="toc-comparison-of-flp-and-fli-across-alternative-food-loss-estimation-methods" class="nav-link" data-scroll-target="#comparison-of-flp-and-fli-across-alternative-food-loss-estimation-methods"><span class="header-section-number">9</span> Comparison of FLP and FLI across alternative food loss estimation methods</a>
+  <ul class="collapse">
+  <li><a href="#calculation-of-flp-and-fli" id="toc-calculation-of-flp-and-fli" class="nav-link" data-scroll-target="#calculation-of-flp-and-fli"><span class="header-section-number">9.1</span> Calculation of FLP and FLI</a></li>
+  <li><a href="#interpretation-of-the-comparison" id="toc-interpretation-of-the-comparison" class="nav-link" data-scroll-target="#interpretation-of-the-comparison"><span class="header-section-number">9.2</span> Interpretation of the comparison</a></li>
+  <li><a href="#distribution-of-flp-and-fli-across-methods" id="toc-distribution-of-flp-and-fli-across-methods" class="nav-link" data-scroll-target="#distribution-of-flp-and-fli-across-methods"><span class="header-section-number">9.3</span> Distribution of FLP and FLI across methods</a></li>
+  <li><a href="#grafical-comparison-of-flp-estimates" id="toc-grafical-comparison-of-flp-estimates" class="nav-link" data-scroll-target="#grafical-comparison-of-flp-estimates"><span class="header-section-number">9.4</span> Grafical comparison of FLP estimates</a></li>
+  <li><a href="#main-insights" id="toc-main-insights" class="nav-link" data-scroll-target="#main-insights"><span class="header-section-number">9.5</span> Main insights</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -168,7 +226,7 @@ ul.task-list li input[type="checkbox"] {
 <p>The workflow is also designed with operational use in mind. Intermediate objects are saved between stages, and the ordered category definitions used when variables are converted to factors in R are preserved for consistency between fitting and prediction. In this workflow, this includes variables such as country, region, food group, product, stage, method, source, and interaction identifiers. Preserving these factor levels is essential because they determine the numeric indexing used by the Bayesian model and must remain unchanged when posterior predictions are generated. This makes the implementation more robust for repeated runs, testing, and future modifications, while also helping control memory usage and computational load.</p>
 <p>This workflow is designed to support reproducible execution by saving intermediate objects between stages, preserving the factor-level structure used during fitting, and storing the scaling constants and prediction-support objects required by downstream steps. Reproducibility is further supported by the use of renv.lock to maintain a controlled package environment.</p>
 <p>This document provides technical documentation of the current implementation as reflected in the existing R code. Its purpose is to describe what has been implemented, how the three plugins are connected, what data structures and intermediate outputs are created, and how the final estimates are produced and written back into SWS.</p>
-<p>In the following sections, the workflow is described step by step, beginning with the preparation of covariates, then the construction and fitting of the Bayesian model, and finally the generation and saving of posterior predictions.</p>
+<p>In the following sections, the workflow is described step by step, beginning with the preparation of covariates, then the construction and fitting of the Bayesian model, and the generation and saving of posterior predictions. The final part of the document is dedicated to the alternative modeling strategies that were implemented, including the alternative-prior Bayesian specification considered for robustness assessment, as well as to the comparison of the resulting food loss percentages and food loss indices across methods.</p>
 </section>
 <section id="general-workflow" class="level1" data-number="2">
 <h1 data-number="2"><span class="header-section-number">2</span> General workflow</h1>
@@ -274,7 +332,7 @@ ul.task-list li input[type="checkbox"] {
 <p>An additional manual imputation is implemented for South Sudan, where pre-observation values are blended with Sudan values up to the first available South Sudan GDP observation.</p>
 <p>The resulting GDP series is then smoothed separately by country using a Generalized Additive Model on the log scale:</p>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>l</mi><mi>o</mi><mi>g</mi><mo stretchy="false" form="prefix">(</mo><mi>G</mi><mi>D</mi><mi>P</mi><mi>p</mi><mi>e</mi><mi>r</mi><mi>c</mi><mi>a</mi><mi>p</mi><mi>i</mi><mi>t</mi><mi>a</mi><mo stretchy="false" form="postfix">)</mo><mo>∼</mo><mi>N</mi><mi>o</mi><mi>r</mi><mi>m</mi><mi>a</mi><mi>l</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>α</mi><mn>0</mn></msub><mo>+</mo><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>y</mi><mi>e</mi><mi>a</mi><mi>r</mi><mo stretchy="false" form="postfix">)</mo><mo>,</mo><msubsup><mi>σ</mi><mrow><mi>G</mi><mi>D</mi><mi>P</mi></mrow><mn>2</mn></msubsup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">log(GDPpercapita) \sim Normal(\alpha_0 + f(year), \sigma^2_{GDP})</annotation></semantics></math></p>
-<p>where <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>y</mi><mi>e</mi><mi>a</mi><mi>r</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">f(year)</annotation></semantics></math> is a smooth function of time. A log transformation on the left-hand side of the equation is used so that the distribution of the model residuals is closer to the assumed Normal distribution and so that the model cannot predict negative GDp per capita values. This model is implemented in the <code>mgcv</code> package in <code>R</code>, with a cubic spline basis assumed for <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>y</mi><mi>e</mi><mi>a</mi><mi>r</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">f(year)</annotation></semantics></math>. For each country, the number of knots for <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>y</mi><mi>e</mi><mi>a</mi><mi>r</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">f(year)</annotation></semantics></math> is specified as the number of years for which GDP per capita estimates are available, divided by four and rounded up.</p>
+<p>where <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>y</mi><mi>e</mi><mi>a</mi><mi>r</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">f(year)</annotation></semantics></math> is a smooth function of time. A log transformation on the left-hand side of the equation is used so that the distribution of the model residuals is closer to the assumed Normal distribution and so that the model cannot predict negative GDP per capita values. This model is implemented in the <code>mgcv</code> package in <code>R</code>, with a cubic spline basis assumed for <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>y</mi><mi>e</mi><mi>a</mi><mi>r</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">f(year)</annotation></semantics></math>. For each country, the number of knots for <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>y</mi><mi>e</mi><mi>a</mi><mi>r</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">f(year)</annotation></semantics></math> is specified as the number of years for which GDP per capita estimates are available, divided by four and rounded up.</p>
 <p>The smoothed series is stored in the variable <code>sm_GDP_percap</code>, while the unsmoothed combined series is kept as <code>GDP_percap</code>. Remaining missing smoothed values are imputed using the mean within <code>region_l2</code> and year.</p>
 <p>The final GDP output is written to the SWS datatable <code>gdp_bayesian</code>, using the variables:</p>
 <ul>
@@ -287,11 +345,11 @@ ul.task-list li input[type="checkbox"] {
 <section id="logistics-performance-index-covariate" class="level2" data-number="3.7">
 <h2 data-number="3.7" class="anchored" data-anchor-id="logistics-performance-index-covariate"><span class="header-section-number">3.7</span> Logistics Performance Index covariate</h2>
 <p>The Logistics Performance Index covariate is prepared from the World Bank WDI indicator <code>LP.LPI.OVRL.XQ</code>. The plugin downloads the raw series for all available countries and years, saves a wide-format extract locally, and then reshapes the data into long format.</p>
-<p>After excluding aggregate regions, the plugin joins the LPI observations to the full country-year grid and the smoothed GDP covariate, and then fits a generalized additive model with <code>mgcv::bam</code>. The model represents LPI as the sum of a smooth effect of standardized year (<code>s(year_sc, k = 7)</code>), a smooth effect of standardized smoothed GDP per capita (<code>s(sm_GDP_percap_sc)</code>), a country random intercept (<code>s(iso3, bs = "re")</code>), and a country-specific random slope on year (<code>s(iso3, bs = "re", by = year_sc)</code>). The smooth term are represented using thin-plate spline basis functions with second-order smoothing penalties. For the year effect, the model uses 7 knots, corresponding to one knot for each year in which observed LPI data are available, while for the smooth effect of smoothed GDP per capita it uses the default basis dimension of 10 knots. The fitted model is then used to predict smoothed LPI values for the full grid of modelling countries and years. More in detail, a single smooth regression modelling approach is implemented:</p>
+<p>After excluding aggregate regions, the plugin joins the LPI observations to the full country-year grid and the smoothed GDP covariate, and then fits a generalized additive model with <code>mgcv::bam</code>. The model represents LPI as the sum of a smooth effect of standardized year (<code>s(year_sc, k = 7)</code>), a smooth effect of standardized smoothed GDP per capita (<code>s(sm_GDP_percap_sc)</code>), a country random intercept (<code>s(iso3, bs = "re")</code>), and a country-specific random slope on year (<code>s(iso3, bs = "re", by = year_sc)</code>). The smooth terms are represented using thin-plate spline basis functions with second-order smoothing penalties. For the year effect, the model uses 7 knots, corresponding to one knot for each year in which observed LPI data are available, while for the smooth effect of smoothed GDP per capita it uses the default basis dimension of 10 knots. The fitted model is then used to predict smoothed LPI values for the full grid of modelling countries and years. More in detail, a single smooth regression modelling approach is implemented:</p>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mi>P</mi><mi>I</mi><mo>∼</mo><mi>N</mi><mi>o</mi><mi>r</mi><mi>m</mi><mi>a</mi><mi>l</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>β</mi><mn>0</mn></msub><mo>+</mo><msub><mi>f</mi><mn>1</mn></msub><mo stretchy="false" form="prefix">(</mo><mi>y</mi><mi>e</mi><mi>a</mi><mi>r</mi><mo stretchy="false" form="postfix">)</mo><mo>+</mo><msub><mi>f</mi><mn>2</mn></msub><mo stretchy="false" form="prefix">(</mo><mi>G</mi><mi>D</mi><mi>P</mi><mi>p</mi><mi>e</mi><mi>r</mi><mi>c</mi><mi>a</mi><mi>p</mi><mi>i</mi><mi>t</mi><mi>a</mi><mo stretchy="false" form="postfix">)</mo><mo>+</mo><msub><mi>g</mi><mn>1</mn></msub><mo stretchy="false" form="prefix">(</mo><mi>c</mi><mi>o</mi><mi>u</mi><mi>n</mi><mi>t</mi><mi>r</mi><mi>y</mi><mo stretchy="false" form="postfix">)</mo><mo>+</mo><msub><mi>g</mi><mn>2</mn></msub><mo stretchy="false" form="prefix">(</mo><mi>c</mi><mi>o</mi><mi>u</mi><mi>n</mi><mi>t</mi><mi>r</mi><mi>y</mi><mo stretchy="false" form="postfix">)</mo><mo>×</mo><mi>y</mi><mi>e</mi><mi>a</mi><mi>r</mi><mo>,</mo><msubsup><mi>σ</mi><mrow><mi>L</mi><mi>P</mi><mi>I</mi></mrow><mn>2</mn></msubsup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">
 LPI \sim Normal(\beta_0 + f_1 (year) + f_2 (GDPpercapita) + g_1 (country) + g_2(country)\times year, \sigma^2_{LPI})
 </annotation></semantics></math></p>
-<p>where <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>f</mi><mn>1</mn></msub><mo stretchy="false" form="prefix">(</mo><mi>y</mi><mi>e</mi><mi>a</mi><mi>r</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">f_1(year)</annotation></semantics></math> and <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>f</mi><mn>2</mn></msub><mo stretchy="false" form="prefix">(</mo><mi>G</mi><mi>D</mi><mi>P</mi><mi>p</mi><mi>e</mi><mi>r</mi><mi>c</mi><mi>a</mi><mi>p</mi><mi>i</mi><mi>t</mi><mi>a</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">f_2(GDPpercapita)</annotation></semantics></math> are smooth functions of centered and scaled year and of smooth GDP per capita, and <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>g</mi><mn>1</mn></msub><annotation encoding="application/x-tex">g_1</annotation></semantics></math> and <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>g</mi><mn>2</mn></msub><annotation encoding="application/x-tex">g_2</annotation></semantics></math> are country-level random intercepts and slopes of the centered and scaled year. Thus the two smooth functions pool information across countries for which LPI data were available, to allow prediction in countries without LPI, while the random intecepts and slopes allow for a closer fit for interpolation in countries with data for some years.</p>
+<p>where <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>f</mi><mn>1</mn></msub><mo stretchy="false" form="prefix">(</mo><mi>y</mi><mi>e</mi><mi>a</mi><mi>r</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">f_1(year)</annotation></semantics></math> and <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>f</mi><mn>2</mn></msub><mo stretchy="false" form="prefix">(</mo><mi>G</mi><mi>D</mi><mi>P</mi><mi>p</mi><mi>e</mi><mi>r</mi><mi>c</mi><mi>a</mi><mi>p</mi><mi>i</mi><mi>t</mi><mi>a</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">f_2(GDPpercapita)</annotation></semantics></math> are smooth functions of centered and scaled year and of smooth GDP per capita, and <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>g</mi><mn>1</mn></msub><annotation encoding="application/x-tex">g_1</annotation></semantics></math> and <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>g</mi><mn>2</mn></msub><annotation encoding="application/x-tex">g_2</annotation></semantics></math> are country-level random intercepts and slopes of the centered and scaled year. Thus the two smooth functions pool information across countries for which LPI data were available, to allow prediction in countries without LPI, while the random intercepts and slopes allow for a closer fit for interpolation in countries with data for some years.</p>
 <p>The resulting smoothed LPI series is stored in <code>sm_lpi</code> in the intermediate object <code>LPI_full</code>, while the original observed series is retained in <code>lpi</code>. In the final output written to SWS, these are saved as <code>lpi_sm</code> and <code>lpi_raw</code>, respectively.</p>
 <p>The final LPI output is written to the SWS datatable <code>lpi_bayesian</code>, using the variables:</p>
 <ul>
@@ -469,7 +527,8 @@ LPI \sim Normal(\beta_0 + f_1 (year) + f_2 (GDPpercapita) + g_1 (country) + g_2(
 <section id="preparation-of-the-model-training-dataset" class="level2" data-number="4.6">
 <h2 data-number="4.6" class="anchored" data-anchor-id="preparation-of-the-model-training-dataset"><span class="header-section-number">4.6</span> Preparation of the model training dataset</h2>
 <p>The model training dataset is constructed inside the plugin from <code>FullSet</code>, which contains the combined observed loss inputs prepared in the preceding steps. This object brings together the reconstructed SWS-derived loss observations and the processed external loss-percentage records.</p>
-<p>The plugin first selects the main identifying and descriptive variables needed for modelling, namely country, year, CPC item, supply-chain location, observed loss percentage, data-collection tag, URL, and source identifier. It then joins the food-group information from <code>fbsTree1</code> and renames selected variables to obtain the modelling fields <code>year</code> and <code>loss_percentage</code>. At this stage, the variable <code>m49_numeric</code> is also created from <code>geographicaream49</code>.</p>
+<p>The plugin first selects the main identifying and descriptive variables needed for modelling, namely country, year, CPC item, supply-chain location, observed loss percentage, data-collection tag, URL, and source identifier. It then joins the food-group information from <code>fbsTree1</code> and renames selected variables to obtain the modelling fields <code>year</code> and <code>loss_percentage</code>.</p>
+<!-- At this stage, the variable `m49_numeric` is also created from `geographicaream49`. -->
 <p>The dataset is then converted to a keyed <code>data.table</code>, and the variables <code>m49_numeric</code>, <code>year</code>, and <code>measureditemcpc</code> are normalized to the required types. Using a keyed join with <code>prod_support</code>, the plugin retains only those observations whose country-product-year combination is supported by the production data. This step ensures that the training data are restricted to valid combinations within the intended modelling support.</p>
 <p>After this filtering step, the plugin joins to the observed loss data:</p>
 <ul>
@@ -622,8 +681,9 @@ y_i \sim \mathcal{N}(\mu_i, \sigma_y)
 <li><code>a4</code>, <code>b2</code>, <code>b3</code>, and <code>b4</code> are defined only for the intercept and year terms and refer to country, product, country-food group interaction and country-product interaction level effects. This represents partial pooling of information, where group level intercepts and coefficients are modelled hierarchically as draws from a shared distribution, inducing shrinkage - that is, group-level (e.g.&nbsp;country-level) effects are additive deviations from the global effect and are “pulled” toward zero with the degree of shrinkage determined by the relative strength of the data and the group-level variance, helping to stabilize estimates especially for groups with limited data.</li>
 <li><code>c1</code>, <code>c2</code>, and <code>c3</code> represent additional categorical effects for stage, method, and source. More in detail, <code>c1</code> and <code>c2</code> provide additive adjustments to the mean of the model depending on the food supply chain stage and the loss percentage data collection method, respectively. The stage effects are not modelled in any mechanistic way - the model learns overall differences in mean loss percentages at the clogloc level between data points with different supply chain labels. <code>c3</code> is a random effect for the data source, intended to capture dependence between data points from the same source, which could share measurement biases or systematic errors. For instance, in the case <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>c</mi><mn>3</mn><mo stretchy="false" form="prefix">(</mo><mi>s</mi><mi>o</mi><mi>u</mi><mi>r</mi><mi>c</mi><msub><mi>e</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">c3 (source_i)</annotation></semantics></math> is negative, that suggests that data points from <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mi>o</mi><mi>u</mi><mi>r</mi><mi>c</mi><msub><mi>e</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">source_i</annotation></semantics></math> are lower than otherwise expected according to the model. Baseline effects such as <code>c1[1]</code>, <code>c2[1]</code> and <code>c3[1]</code> are fixed to zero because they represent the reference categories for stage, method and source. The remaining category effects are therefore interpreted relative to those baselines.</li>
 </ul>
-<p>Therefore: - <code>a4</code> represents country-level intercept and year effects;</p>
+<p>Therefore:</p>
 <ul>
+<li><p><code>a4</code> represents country-level intercept and year effects;</p></li>
 <li><p><code>b2</code> represents product-level intercept and year effects;</p></li>
 <li><p><code>b3</code> respresents food-group-country intercept and year efects;</p></li>
 <li><p><code>b4</code> represents product-country intercept and year effects.</p></li>
@@ -661,8 +721,8 @@ y_i \sim \mathcal{N}(\mu_i, \sigma_y)
 <h2 data-number="4.10" class="anchored" data-anchor-id="mcmc-setup-and-execution"><span class="header-section-number">4.10</span> MCMC setup and execution</h2>
 <p>The core estimation routine is wrapped in <code>loss_model_run_function</code>.</p>
 <p>This function:</p>
+<!-- - optionally censors test rows for cross-validation use (i.e. the function can be used in a cross-validation mode, where some observations are temporarily hidden from the model and treated as test data); -->
 <ul>
-<li>optionally censors test rows for cross-validation use (i.e.&nbsp;the function can be used in a cross-validation mode, where some observations are temporarily hidden from the model and treated as test data);</li>
 <li>rescales the continuous covariates using the observed training rows of that run;</li>
 <li>builds the NIMBLE model;</li>
 <li>compiles the model;</li>
@@ -1156,8 +1216,9 @@ y_i \sim \mathcal{N}(\mu_i, \sigma_y)
 <p>The covariate outputs produced in the first stage are consumed by the fitting stage. The saved modelling and posterior objects produced in the fitting stage are then consumed by the prediction stage. The prediction stage in turn produces both intermediate working files and final posterior quantile tables, which are ultimately reshaped and saved as the final SWS estimate datasets.</p>
 <p>For this reason, the outputs should not be viewed as independent products, but rather as successive layers of the same workflow. Each category plays a distinct role: some outputs support reproducibility and computational efficiency, while others provide the final operational estimates intended for use in SWS.</p>
 </section>
-<section id="summary" class="level2" data-number="6.7">
-<h2 data-number="6.7" class="anchored" data-anchor-id="summary"><span class="header-section-number">6.7</span> Summary</h2>
+</section>
+<section id="summary" class="level1" data-number="7">
+<h1 data-number="7"><span class="header-section-number">7</span> Summary</h1>
 <p>In summary, the workflow produces:</p>
 <ul>
 <li>processed covariate and grouping outputs;</li>
@@ -1168,6 +1229,631 @@ y_i \sim \mathcal{N}(\mu_i, \sigma_y)
 <li>final SWS food loss estimate datasets.</li>
 </ul>
 <p>Together, these outputs capture the full progression from data preparation to model estimation and finally to operational posterior food loss estimates.</p>
+</section>
+<section id="alternative-methods" class="level1" data-number="8">
+<h1 data-number="8"><span class="header-section-number">8</span> Alternative methods</h1>
+<section id="bayesian-hierarchical-method-with-alternative-priors" class="level2" data-number="8.1">
+<h2 data-number="8.1" class="anchored" data-anchor-id="bayesian-hierarchical-method-with-alternative-priors"><span class="header-section-number">8.1</span> Bayesian hierarchical method with alternative priors</h2>
+<p>In addition to the baseline Bayesian specification, an alternative-prior version of the model was implemented as a sensitivity analysis. The purpose of this variant was to assess how sensitive the resulting food-loss estimates are to the prior assumptions placed on the global components of the linear predictor, while leaving the overall hierarchical structure of the model unchanged.</p>
+<section id="alternative-prior-specification" class="level3" data-number="8.1.1">
+<h3 data-number="8.1.1" class="anchored" data-anchor-id="alternative-prior-specification"><span class="header-section-number">8.1.1</span> Alternative prior specification</h3>
+<p>In the alternative-prior version of the Bayesian model, the only change concerns the prior distribution assigned to the global coefficient vector <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>a</mi><mn>1</mn></msub><mo>=</mo><mo stretchy="false" form="prefix">(</mo><msub><mi>a</mi><mrow><mn>1</mn><mo>,</mo><mn>1</mn></mrow></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>a</mi><mrow><mn>1</mn><mo>,</mo><mn>6</mn></mrow></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">a_1 = (a_{1,1}, \dots, a_{1,6})</annotation></semantics></math>. The likelihood, the linear predictor, the hierarchical structure, the factor coding, the covariates, and all lower-level priors remain unchanged. As in the baseline model, the six components of <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>a</mi><mn>1</mn></msub><annotation encoding="application/x-tex">a_1</annotation></semantics></math> correspond to the global intercept, year effect, rainfall effect, temperature effect, GDP effect, and LPI effect, respectively. In the baseline specification, these global coefficients were assigned diffuse priors of the form</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>a</mi><mrow><mn>1</mn><mo>,</mo><mi>p</mi></mrow></msub><mo>∼</mo><mi>𝒩</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><msup><mn>10</mn><mn>2</mn></msup><mo stretchy="false" form="postfix">)</mo><mo>,</mo><mspace width="2.0em"></mspace><mi>p</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mn>6</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">
+a_{1,p} \sim \mathcal{N}(0, 10^2), \qquad p = 1, \dots, 6.
+</annotation></semantics></math></p>
+<p>In the alternative-prior specification, these diffuse priors are replaced by coefficient-specific Normal priors, with the intercept treated separately from the remaining five global coefficients.</p>
+<p>The prior for the global intercept <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>a</mi><mrow><mn>1</mn><mo>,</mo><mn>1</mn></mrow></msub><annotation encoding="application/x-tex">a_{1,1}</annotation></semantics></math> is calibrated empirically from the final training data actually used in the fit. Let <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mi>i</mi></msub><mo>∈</mo><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">p_i \in (0,1)</annotation></semantics></math> denote the fitted loss proportions in <code>model_data</code>, and define their complementary log-log transform by</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>z</mi><mi>i</mi></msub><mo>=</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mo minsize="120%" maxsize="120%" stretchy="true" form="prefix">(</mo><mo>−</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mo minsize="120%" maxsize="120%" stretchy="true" form="postfix">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+z_i = \log\bigl(-\log(1-p_i)\bigr).
+</annotation></semantics></math></p>
+<p>The prior mean for the intercept is taken as the sample median of these transformed losses,</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>m</mi><mn>0</mn></msub><mo>=</mo><mrow><mi mathvariant="normal">median</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>z</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>,</mo></mrow><annotation encoding="application/x-tex">
+m_0 = \operatorname{median}(z_i),
+</annotation></semantics></math></p>
+<p>while the prior standard deviation is defined as</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>s</mi><mn>0</mn></msub><mo>=</mo><mrow><mi mathvariant="normal">max</mi><mo>⁡</mo></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mfrac><mrow><mrow><mi mathvariant="normal">IQR</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>z</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><mn>1.349</mn></mfrac><mo>,</mo><mspace width="0.222em"></mspace><mn>0.5</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+s_0 = \max\left(\frac{\operatorname{IQR}(z_i)}{1.349},\ 0.5\right).
+</annotation></semantics></math></p>
+<p>Here <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">IQR</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>z</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mn>1.349</mn></mrow><annotation encoding="application/x-tex">\operatorname{IQR}(z_i)/1.349</annotation></semantics></math> is used as a robust proxy for a standard deviation under a Normal approximation, and the lower bound of <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0.5</mn><annotation encoding="application/x-tex">0.5</annotation></semantics></math> prevents the prior from becoming excessively concentrated if the empirical spread of the transformed losses is very small. The resulting intercept prior is therefore</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>a</mi><mrow><mn>1</mn><mo>,</mo><mn>1</mn></mrow></msub><mo>∼</mo><mi>𝒩</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>m</mi><mn>0</mn></msub><mo>,</mo><msubsup><mi>s</mi><mn>0</mn><mn>2</mn></msubsup><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+a_{1,1} \sim \mathcal{N}(m_0, s_0^2).
+</annotation></semantics></math></p>
+<p>This is an empirical, data-informed prior on the cloglog scale, anchored to the overall distribution of transformed loss observations in the final modelling dataset.</p>
+<p>For the remaining global coefficients, corresponding to year, rainfall, temperature, GDP, and LPI, the alternative-prior specification imposes tighter zero-centred priors:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>a</mi><mrow><mn>1</mn><mo>,</mo><mi>p</mi></mrow></msub><mo>∼</mo><mi>𝒩</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><msup><mn>1</mn><mn>2</mn></msup><mo stretchy="false" form="postfix">)</mo><mo>,</mo><mspace width="2.0em"></mspace><mi>p</mi><mo>=</mo><mn>2</mn><mo>,</mo><mi>…</mi><mo>,</mo><mn>6</mn><mi>.</mi></mrow><annotation encoding="application/x-tex">
+a_{1,p} \sim \mathcal{N}(0, 1^2), \qquad p = 2, \dots, 6.
+</annotation></semantics></math></p>
+<p>These priors are substantially more regularizing than the original <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝒩</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><msup><mn>10</mn><mn>2</mn></msup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{N}(0,10^2)</annotation></semantics></math> formulation. All other priors in the hierarchical model are left unchanged. In particular, the regional effects <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>a</mi><mn>2</mn></msub><annotation encoding="application/x-tex">a_2</annotation></semantics></math> and <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>a</mi><mn>3</mn></msub><annotation encoding="application/x-tex">a_3</annotation></semantics></math>, the country effects <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>a</mi><mn>4</mn></msub><annotation encoding="application/x-tex">a_4</annotation></semantics></math>, the basket effects <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>b</mi><mn>1</mn></msub><annotation encoding="application/x-tex">b_1</annotation></semantics></math>, the product effects <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>b</mi><mn>2</mn></msub><annotation encoding="application/x-tex">b_2</annotation></semantics></math>, the basket-country effects <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>b</mi><mn>3</mn></msub><annotation encoding="application/x-tex">b_3</annotation></semantics></math>, the product-country effects <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>b</mi><mn>4</mn></msub><annotation encoding="application/x-tex">b_4</annotation></semantics></math>, the stage, method, and source effects <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>c</mi><mn>1</mn></msub><mo>,</mo><msub><mi>c</mi><mn>2</mn></msub><mo>,</mo><msub><mi>c</mi><mn>3</mn></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(c_1, c_2, c_3)</annotation></semantics></math>, and all variance components retain exactly the same prior distributions as in the baseline Bayesian specification.</p>
+<!-- ### Comparison between the baseline and alternative-prior Bayesian models -->
+<!-- To assess the sensitivity of the Bayesian food-loss estimates to the alternative prior specification, I compared the predictions obtained from the baseline Bayesian model with those obtained from the Bayesian model fitted under the alternative priors. Since the two models share the same likelihood, hierarchical structure, covariates, factor coding, and prediction procedure, this comparison isolates the effect of the prior modification itself on the final estimates. -->
+<!-- For each country--product--year combination, I defined -->
+<!-- $$ -->
+<!-- \texttt{diff}_i = \widehat{p}^{\text{alt}}_i - \widehat{p}^{\text{base}}_i, -->
+<!-- $$ -->
+<!-- $$ -->
+<!-- \texttt{abs\_diff}_i = \left| \widehat{p}^{\text{alt}}_i - \widehat{p}^{\text{base}}_i \right|, -->
+<!-- $$ -->
+<!-- and -->
+<!-- $$ -->
+<!-- \texttt{abs\_rel\_diff}_i = -->
+<!-- \left| -->
+<!-- \frac{\widehat{p}^{\text{alt}}_i - \widehat{p}^{\text{base}}_i} -->
+<!-- {\widehat{p}^{\text{base}}_i} -->
+<!-- \right|. -->
+<!-- $$ -->
+<!-- Here, $\widehat{p}^{\text{base}}_i$ denotes the prediction from the baseline Bayesian model and $\widehat{p}^{\text{alt}}_i$ denotes the corresponding prediction from the alternative-prior Bayesian model. -->
+<!-- #### SUA-level comparison -->
+<!-- At the SUA level, the two Bayesian specifications produced extremely similar results. The comparison covered $598{,}302$ country--product--year predictions. The mean prediction under the baseline model was $0.149$, while the mean prediction under the alternative-prior model was also $0.149$. The mean signed difference was $-0.000146$, indicating essentially no systematic shift between the two sets of estimates. The mean absolute difference was $0.00125$, the median absolute difference was $0.000947$, and the root mean squared error was $0.00168$. The correlation between the two sets of predictions was effectively $1.000$. -->
+<!-- Prediction interval widths were also nearly unchanged. The mean interval width was $0.329$ under both specifications. The mean width difference was $-0.000664$, and the mean absolute width difference was $0.00675$. -->
+<!-- In relative terms, almost all SUA predictions remained within $5\%$ of the baseline values. In absolute terms, almost all predictions differed by no more than $0.01$. -->
+<!-- The distribution across relative-difference bands was: -->
+<!-- | Relative difference band | Count | Share | -->
+<!-- |---|---:|---:| -->
+<!-- | `<= 5%` | 598,184 | 99.98% | -->
+<!-- | `5% to 10%` | 118 | 0.02% | -->
+<!-- The distribution across absolute-difference bands was: -->
+<!-- | Absolute difference band | Count | Share | -->
+<!-- |---|---:|---:| -->
+<!-- | `<= 0.01` | 598,202 | 99.98% | -->
+<!-- | `0.01 to 0.02` | 100 | 0.02% | -->
+<!-- ### Illustrative examples of the differences -->
+<!-- To make the comparison between the baseline Bayesian model and the alternative-prior Bayesian model more concrete, Table @tbl-altprior-examples shows four illustrative SUA-level prediction pairs. These examples were selected only for interpretation and are not intended to be representative of the whole prediction set. -->
+<!-- They help distinguish between two different notions of discrepancy: -->
+<!-- - the **absolute difference**, reported on the original loss-proportion scale; -->
+<!-- - the **absolute relative difference**, reported as a percentage of the baseline prediction. -->
+<!-- An absolute difference of, for example, $0.01$ means that the two predictions differ by $0.01$ on the $[0,1]$ loss scale, that is, by 1 percentage point. By contrast, the absolute relative difference rescales the same gap by the baseline prediction, so that the discrepancy is interpreted relative to the predicted loss level itself. -->
+<!-- For instance, in the first example the baseline prediction is $0.101$ and the alternative-prior prediction is $0.106$, so the absolute difference is $0.0044$. On the original scale, this corresponds to a difference of 0.44 percentage points. Relative to the baseline prediction, however, this gap corresponds to $4.3\%$. -->
+<!-- Similarly, in the second example the baseline and alternative-prior predictions are $0.221$ and $0.230$, respectively. Here the absolute difference is $0.009$, which corresponds to 0.9 percentage points, while the absolute relative difference is $4.1\%$. -->
+<!-- These examples illustrate why it is useful to report both absolute and relative discrepancies. The absolute difference shows the size of the gap on the original food-loss scale, while the relative difference shows how large that gap is compared with the baseline prediction. In the present comparison, both measures remain very small, which is consistent with the overall conclusion that the model outputs are highly robust to the alternative prior specification. -->
+<!-- | Example | ISO3 | Year | CPC item | Baseline prediction | Alternative-prior prediction | Difference | Absolute difference | Absolute relative difference | -->
+<!-- |:---|:---:|---:|:---:|---:|---:|---:|---:|---:| -->
+<!-- | low loss, absolute difference about 0.01 | CHN | 1998 | 0116 | 0.101 | 0.106 | 0.0044 | 0.0044 | 4.3% | -->
+<!-- | high loss, absolute difference about 0.01 | CHN | 2003 | 01214 | 0.221 | 0.23 | 0.009 | 0.009 | 4.1% | -->
+<!-- | low loss, absolute relative difference about 5% | CHN | 1991 | 01373 | 0.0806 | 0.0844 | 0.0039 | 0.0039 | 4.8% | -->
+<!-- | high loss, absolute relative difference about 5% | CHN | 1994 | 01342.01 | 0.196 | 0.205 | 0.0087 | 0.0087 | 4.4% | -->
+<!-- : Illustrative examples of baseline versus alternative-prior Bayesian SUA predictions. {#tbl-altprior-examples} -->
+<!-- #### Survey-level comparison -->
+<!-- The same pattern appeared for the Survey-level predictions. Again, the comparison covered $598{,}302$ country--product--year predictions. The mean prediction under the baseline model was $0.174$, compared with $0.173$ under the alternative-prior model. The mean signed difference was $-0.000589$, the mean absolute difference was $0.00152$, the median absolute difference was $0.00116$, and the root mean squared error was $0.00202$. The correlation between the two sets of predictions was again effectively $1.000$. -->
+<!-- Prediction interval widths were likewise very similar. The mean interval width was $0.373$ under the baseline model and $0.371$ under the alternative-prior model. The mean width difference was $-0.00122$, and the mean absolute width difference was $0.00738$. -->
+<!-- As in the SUA comparison, almost all Survey predictions remained within $5\%$ of the baseline values, and almost all absolute differences were no greater than $0.01$. -->
+<!-- The distribution across relative-difference bands was: -->
+<!-- | Relative difference band | Count | Share | -->
+<!-- |---|---:|---:| -->
+<!-- | `<= 5%` | 598,238 | 99.99% | -->
+<!-- | `5% to 10%` | 64 | 0.01% | -->
+<!-- The distribution across absolute-difference bands was: -->
+<!-- | Absolute difference band | Count | Share | -->
+<!-- |---|---:|---:| -->
+<!-- | `<= 0.01` | 598,063 | 99.96% | -->
+<!-- | `0.01 to 0.02` | 239 | 0.04% | -->
+<!-- ### Interpretation -->
+<!-- Taken together, these results indicate that the Bayesian food-loss estimates are highly robust to the alternative prior specification considered here. The differences between the baseline and alternative-prior predictions are extremely small in both the SUA and Survey outputs, not only on average but also across the full distribution of predictions. -->
+<!-- Even the largest discrepancies remain modest in absolute magnitude. This suggests that, in the present application, the posterior estimates are driven primarily by the data and by the hierarchical model structure rather than by the specific prior choice used for the global coefficients. Accordingly, the alternative-prior exercise supports the conclusion that the baseline Bayesian results are stable with respect to this prior modification. -->
+</section>
+</section>
+<section id="frequentist-benchmark-gaussian-gam-with-random-effects" class="level2" data-number="8.2">
+<h2 data-number="8.2" class="anchored" data-anchor-id="frequentist-benchmark-gaussian-gam-with-random-effects"><span class="header-section-number">8.2</span> Frequentist benchmark: Gaussian GAM with random effects</h2>
+<p>To provide a frequentist benchmark against the hierarchical Bayesian food loss model, I implemented a generalized additive mixed model (GAMM) using the <code>mgcv</code> package, fitted with <code>bam()</code> for computational efficiency on a relatively large training dataset. The purpose of this benchmark is not to replicate the Bayesian model exactly, but to produce an alternative set of model-based food loss estimates using the same training data structure, the same core covariates, and a closely related linear predictor specification. This makes it possible to compare the resulting estimates with the Bayesian outputs and assess how sensitive the final predictions are to the modelling framework.</p>
+<p>The benchmark starts from the same final <code>model_data</code> object used for the Bayesian fit, so it relies on the same cleaned and preprocessed observations, the same harmonized stage, method, and source variables, the same joined climate and macroeconomic covariates, and the same restriction to valid country–product–year combinations supported by production data. In this sense, the frequentist benchmark is designed to be closely aligned in data pipeline and prediction support to the Bayesian workflow while replacing posterior simulation with penalized likelihood estimation.</p>
+<section id="model-specification" class="level3" data-number="8.2.1">
+<h3 data-number="8.2.1" class="anchored" data-anchor-id="model-specification"><span class="header-section-number">8.2.1</span> Model specification</h3>
+<p>The response variable is <code>loss_percentage</code>, which is a proportion in the open interval <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(0,1)</annotation></semantics></math>. In order to fit a Gaussian model on an unrestricted scale, the response is transformed using the complementary log-log transformation</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>η</mi><mi>i</mi></msub><mo>=</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mo minsize="120%" maxsize="120%" stretchy="true" form="prefix">(</mo><mo>−</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mo minsize="120%" maxsize="120%" stretchy="true" form="postfix">)</mo><mo>,</mo></mrow><annotation encoding="application/x-tex">
+\eta_i = \log\bigl(-\log(1-p_i)\bigr),
+</annotation></semantics></math></p>
+<p>where <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>p</mi><mi>i</mi></msub><annotation encoding="application/x-tex">p_i</annotation></semantics></math> denotes the observed loss proportion for observation <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>. Predictions are mapped back to the original proportion scale using the inverse transformation</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mi>i</mi></msub><mo>=</mo><mn>1</mn><mo>−</mo><mrow><mi mathvariant="normal">exp</mi><mo>⁡</mo></mrow><mo minsize="120%" maxsize="120%" stretchy="true" form="prefix">(</mo><mo>−</mo><mrow><mi mathvariant="normal">exp</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>η</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mo minsize="120%" maxsize="120%" stretchy="true" form="postfix">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+p_i = 1 - \exp\bigl(-\exp(\eta_i)\bigr).
+</annotation></semantics></math></p>
+<p>This choice keeps the frequentist benchmark close to the Bayesian model, which is also formulated on the cloglog-transformed response scale.</p>
+<p>The model uses the same continuous predictors as the Bayesian model: year, rainfall, temperature, GDP per capita, and LPI. Before fitting, these variables are standardized using the training data. Year, temperature, GDP, and LPI are centered and scaled directly, while rainfall is first transformed as <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><mtext mathvariant="monospace">𝚛𝚊𝚒𝚗𝚏𝚊𝚕𝚕</mtext><mo>+</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\log(\texttt{rainfall}+1)</annotation></semantics></math> and then standardized. The same scaling constants are stored and reused at prediction time so that new country–product–year combinations are transformed consistently with the training data.</p>
+<p>Let</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>y</mi><mi>i</mi><mo>*</mo></msubsup><mo>=</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mo minsize="120%" maxsize="120%" stretchy="true" form="prefix">(</mo><mo>−</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mo minsize="120%" maxsize="120%" stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">
+y_i^{\ast} = \log\bigl(-\log(1-p_i)\bigr)
+</annotation></semantics></math></p>
+<p>denote the cloglog-transformed loss proportion for observation <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>, where <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mi>i</mi></msub><mo>∈</mo><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">p_i \in (0,1)</annotation></semantics></math> is the observed loss proportion. The Gaussian GAMM assumes</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>y</mi><mi>i</mi><mo>*</mo></msubsup><mo>∼</mo><mi>𝒩</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>μ</mi><mi>i</mi></msub><mo>,</mo><msup><mi>σ</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+y_i^{\ast} \sim \mathcal{N}(\mu_i, \sigma^2).
+</annotation></semantics></math></p>
+<p>The linear predictor can be written schematically as</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>μ</mi><mi>i</mi></msub><mo>=</mo><mi>α</mi><mo>+</mo><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mn>5</mn></munderover><msub><mi>f</mi><mi>j</mi></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>X</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo stretchy="false" form="postfix">)</mo><mo>+</mo><munderover><mo>∑</mo><mrow><mi>h</mi><mo>=</mo><mn>1</mn></mrow><mn>7</mn></munderover><msub><mi>u</mi><mi>h</mi></msub><mspace width="-0.167em"></mspace><mo minsize="120%" maxsize="120%" stretchy="true" form="prefix">(</mo><msubsup><mi>G</mi><mi>i</mi><mrow><mo stretchy="false" form="prefix">(</mo><mi>h</mi><mo stretchy="false" form="postfix">)</mo></mrow></msubsup><mo minsize="120%" maxsize="120%" stretchy="true" form="postfix">)</mo><mo>+</mo><munderover><mo>∑</mo><mrow><mi>r</mi><mo>=</mo><mn>1</mn></mrow><mn>7</mn></munderover><msub><mi>v</mi><mi>r</mi></msub><mspace width="-0.167em"></mspace><mo minsize="120%" maxsize="120%" stretchy="true" form="prefix">(</mo><msubsup><mi>H</mi><mi>i</mi><mrow><mo stretchy="false" form="prefix">(</mo><mi>r</mi><mo stretchy="false" form="postfix">)</mo></mrow></msubsup><mo minsize="120%" maxsize="120%" stretchy="true" form="postfix">)</mo><mspace width="0.167em"></mspace><msub><mrow><mi mathvariant="normal">y</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">c</mi></mrow><mi>i</mi></msub><mo>+</mo><msubsup><mi>c</mi><mrow><mrow><mi mathvariant="normal">s</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">e</mi></mrow><mo stretchy="false" form="prefix">(</mo><mi>i</mi><mo stretchy="false" form="postfix">)</mo></mrow><mrow><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo></mrow></msubsup><mo>+</mo><msubsup><mi>c</mi><mrow><mrow><mi mathvariant="normal">m</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">h</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">d</mi></mrow><mo stretchy="false" form="prefix">(</mo><mi>i</mi><mo stretchy="false" form="postfix">)</mo></mrow><mrow><mo stretchy="false" form="prefix">(</mo><mn>2</mn><mo stretchy="false" form="postfix">)</mo></mrow></msubsup><mo>+</mo><msubsup><mi>c</mi><mrow><mrow><mi mathvariant="normal">s</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">c</mi><mi mathvariant="normal">e</mi></mrow><mo stretchy="false" form="prefix">(</mo><mi>i</mi><mo stretchy="false" form="postfix">)</mo></mrow><mrow><mo stretchy="false" form="prefix">(</mo><mn>3</mn><mo stretchy="false" form="postfix">)</mo></mrow></msubsup><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\mu_i
+=
+\alpha
++
+\sum_{j=1}^{5} f_j(X_{ij})
++
+\sum_{h=1}^{7} u_h\!\bigl(G_i^{(h)}\bigr)
++
+\sum_{r=1}^{7} v_r\!\bigl(H_i^{(r)}\bigr)\,\mathrm{year\_sc}_i
++
+c^{(1)}_{\mathrm{stage}(i)}
++
+c^{(2)}_{\mathrm{method}(i)}
++
+c^{(3)}_{\mathrm{source}(i)}.
+</annotation></semantics></math></p>
+<p>Here:</p>
+<ul>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>X</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">X_{ij}</annotation></semantics></math> denotes the five standardized continuous predictors, <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><msub><mrow><mi mathvariant="normal">y</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">c</mi></mrow><mi>i</mi></msub><mo>,</mo><mspace width="0.222em"></mspace><msub><mrow><mi mathvariant="normal">r</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">c</mi></mrow><mi>i</mi></msub><mo>,</mo><mspace width="0.222em"></mspace><msub><mrow><mi mathvariant="normal">t</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">m</mi><mi mathvariant="normal">p</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">c</mi></mrow><mi>i</mi></msub><mo>,</mo><mspace width="0.222em"></mspace><msub><mrow><mi mathvariant="normal">g</mi><mi mathvariant="normal">d</mi><mi mathvariant="normal">p</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">c</mi></mrow><mi>i</mi></msub><mo>,</mo><mspace width="0.222em"></mspace><msub><mrow><mi mathvariant="normal">l</mi><mi mathvariant="normal">p</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">c</mi></mrow><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>;</mo></mrow><annotation encoding="application/x-tex">
+(\mathrm{year\_sc}_i,\ \mathrm{rain\_sc}_i,\ \mathrm{temp\_sc}_i,\ \mathrm{gdp\_sc}_i,\ \mathrm{lpi\_sc}_i);
+</annotation></semantics></math></li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>G</mi><mi>i</mi><mrow><mo stretchy="false" form="prefix">(</mo><mi>h</mi><mo stretchy="false" form="postfix">)</mo></mrow></msubsup><annotation encoding="application/x-tex">G_i^{(h)}</annotation></semantics></math> denotes the seven grouping variables that receive random-intercept-style effects, <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">r</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">l</mi><mn mathvariant="normal">1</mn></mrow><mo>,</mo><mspace width="0.222em"></mspace><mrow><mi mathvariant="normal">r</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">l</mi><mn mathvariant="normal">2</mn></mrow><mo>,</mo><mspace width="0.222em"></mspace><mrow><mi mathvariant="normal">c</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">y</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">m</mi><mn mathvariant="normal">49</mn></mrow><mo>,</mo><mspace width="0.222em"></mspace><mrow><mi mathvariant="normal">f</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">d</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">p</mi></mrow><mo>,</mo><mspace width="0.222em"></mspace><mrow><mi mathvariant="normal">p</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">d</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">c</mi><mi mathvariant="normal">t</mi></mrow><mo>,</mo><mspace width="0.222em"></mspace><mrow><mi mathvariant="normal">b</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">k</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">c</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">y</mi></mrow><mo>,</mo><mspace width="0.222em"></mspace><mrow><mi mathvariant="normal">p</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">d</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">c</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">c</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">y</mi></mrow><mo>;</mo></mrow><annotation encoding="application/x-tex">
+\mathrm{region\_l1},\ \mathrm{region\_l2},\ \mathrm{country\_m49},\ \mathrm{food\_group},\ \mathrm{product},\ \mathrm{basket\_country},\ \mathrm{product\_country};
+</annotation></semantics></math></li>
+<li><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>H</mi><mi>i</mi><mrow><mo stretchy="false" form="prefix">(</mo><mi>r</mi><mo stretchy="false" form="postfix">)</mo></mrow></msubsup><annotation encoding="application/x-tex">H_i^{(r)}</annotation></semantics></math> denotes the seven grouping variables that receive year-varying random-effect-style terms, <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">r</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">l</mi><mn mathvariant="normal">1</mn></mrow><mo>,</mo><mspace width="0.222em"></mspace><mrow><mi mathvariant="normal">r</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">l</mi><mn mathvariant="normal">2</mn></mrow><mo>,</mo><mspace width="0.222em"></mspace><mrow><mi mathvariant="normal">c</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">y</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">m</mi><mn mathvariant="normal">49</mn></mrow><mo>,</mo><mspace width="0.222em"></mspace><mrow><mi mathvariant="normal">f</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">d</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">p</mi></mrow><mo>,</mo><mspace width="0.222em"></mspace><mrow><mi mathvariant="normal">p</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">d</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">c</mi><mi mathvariant="normal">t</mi></mrow><mo>,</mo><mspace width="0.222em"></mspace><mrow><mi mathvariant="normal">b</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">k</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">c</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">y</mi></mrow><mo>,</mo><mspace width="0.222em"></mspace><mrow><mi mathvariant="normal">p</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">d</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">c</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">c</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">y</mi></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\mathrm{region\_l1},\ \mathrm{region\_l2},\ \mathrm{country\_m49},\ \mathrm{food\_group},\ \mathrm{product},\ \mathrm{basket\_country},\ \mathrm{product\_country}.
+</annotation></semantics></math></li>
+</ul>
+<p>In this representation, the terms <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>f</mi><mi>j</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>⋅</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">f_j(\cdot)</annotation></semantics></math> denote the smooth effects of the five continuous predictors, the terms <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>u</mi><mi>h</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>⋅</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">u_h(\cdot)</annotation></semantics></math> denote grouped random-effect-style deviations in the intercept, and the terms <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>v</mi><mi>r</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>⋅</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><msub><mrow><mi mathvariant="normal">y</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">c</mi></mrow><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">v_r(\cdot)\,\mathrm{year\_sc}_i</annotation></semantics></math> denote grouped deviations in the year effect. The terms <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>c</mi><mrow><mrow><mi mathvariant="normal">s</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">e</mi></mrow><mo stretchy="false" form="prefix">(</mo><mi>i</mi><mo stretchy="false" form="postfix">)</mo></mrow><mrow><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo></mrow></msubsup><annotation encoding="application/x-tex">c^{(1)}_{\mathrm{stage}(i)}</annotation></semantics></math>, <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>c</mi><mrow><mrow><mi mathvariant="normal">m</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">h</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">d</mi></mrow><mo stretchy="false" form="prefix">(</mo><mi>i</mi><mo stretchy="false" form="postfix">)</mo></mrow><mrow><mo stretchy="false" form="prefix">(</mo><mn>2</mn><mo stretchy="false" form="postfix">)</mo></mrow></msubsup><annotation encoding="application/x-tex">c^{(2)}_{\mathrm{method}(i)}</annotation></semantics></math>, and <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>c</mi><mrow><mrow><mi mathvariant="normal">s</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">c</mi><mi mathvariant="normal">e</mi></mrow><mo stretchy="false" form="prefix">(</mo><mi>i</mi><mo stretchy="false" form="postfix">)</mo></mrow><mrow><mo stretchy="false" form="prefix">(</mo><mn>3</mn><mo stretchy="false" form="postfix">)</mo></mrow></msubsup><annotation encoding="application/x-tex">c^{(3)}_{\mathrm{source}(i)}</annotation></semantics></math> are ordinary categorical effects for stage, method, and source.</p>
+<p>This compact expression is a schematic mathematical representation of the fitted GAMM. The exact implementation in <code>mgcv</code> is:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>form <span class="ot">&lt;-</span> y_cloglog <span class="sc">~</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  stage <span class="sc">+</span> method <span class="sc">+</span> source <span class="sc">+</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">s</span>(year_sc, <span class="at">k =</span> k_year, <span class="at">bs =</span> <span class="st">"cr"</span>) <span class="sc">+</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">s</span>(rain_sc, <span class="at">k =</span> k_cov, <span class="at">bs =</span> <span class="st">"cr"</span>) <span class="sc">+</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">s</span>(temp_sc, <span class="at">k =</span> k_cov, <span class="at">bs =</span> <span class="st">"cr"</span>) <span class="sc">+</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">s</span>(gdp_sc,  <span class="at">k =</span> k_cov, <span class="at">bs =</span> <span class="st">"cr"</span>) <span class="sc">+</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">s</span>(lpi_sc,  <span class="at">k =</span> k_cov, <span class="at">bs =</span> <span class="st">"cr"</span>) <span class="sc">+</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">s</span>(region_l1,   <span class="at">bs =</span> <span class="st">"re"</span>) <span class="sc">+</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">s</span>(region_l2,   <span class="at">bs =</span> <span class="st">"re"</span>) <span class="sc">+</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">s</span>(country_m49, <span class="at">bs =</span> <span class="st">"re"</span>) <span class="sc">+</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">s</span>(food_group,  <span class="at">bs =</span> <span class="st">"re"</span>) <span class="sc">+</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">s</span>(product,        <span class="at">bs =</span> <span class="st">"re"</span>) <span class="sc">+</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">s</span>(basket_country, <span class="at">bs =</span> <span class="st">"re"</span>) <span class="sc">+</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">s</span>(product_country,   <span class="at">bs =</span> <span class="st">"re"</span>) <span class="sc">+</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">s</span>(year_sc, region_l1,      <span class="at">bs =</span> <span class="st">"re"</span>) <span class="sc">+</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">s</span>(year_sc, region_l2,      <span class="at">bs =</span> <span class="st">"re"</span>) <span class="sc">+</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">s</span>(year_sc, country_m49,    <span class="at">bs =</span> <span class="st">"re"</span>) <span class="sc">+</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">s</span>(year_sc, food_group,     <span class="at">bs =</span> <span class="st">"re"</span>) <span class="sc">+</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">s</span>(year_sc, product,           <span class="at">bs =</span> <span class="st">"re"</span>) <span class="sc">+</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">s</span>(year_sc, basket_country, <span class="at">bs =</span> <span class="st">"re"</span>) <span class="sc">+</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">s</span>(year_sc, product_country,   <span class="at">bs =</span> <span class="st">"re"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="interpretation-of-the-model-components" class="level3" data-number="8.2.2">
+<h3 data-number="8.2.2" class="anchored" data-anchor-id="interpretation-of-the-model-components"><span class="header-section-number">8.2.2</span> Interpretation of the model components</h3>
+<p>The terms <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo stretchy="false" form="prefix">(</mo><mtext mathvariant="monospace">𝚢𝚎𝚊𝚛_𝚜𝚌</mtext><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">s(\texttt{year\_sc})</annotation></semantics></math>, <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo stretchy="false" form="prefix">(</mo><mtext mathvariant="monospace">𝚛𝚊𝚒𝚗_𝚜𝚌</mtext><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">s(\texttt{rain\_sc})</annotation></semantics></math>, <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo stretchy="false" form="prefix">(</mo><mtext mathvariant="monospace">𝚝𝚎𝚖𝚙_𝚜𝚌</mtext><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">s(\texttt{temp\_sc})</annotation></semantics></math>, <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo stretchy="false" form="prefix">(</mo><mtext mathvariant="monospace">𝚐𝚍𝚙_𝚜𝚌</mtext><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">s(\texttt{gdp\_sc})</annotation></semantics></math>, and <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo stretchy="false" form="prefix">(</mo><mtext mathvariant="monospace">𝚕𝚙𝚒_𝚜𝚌</mtext><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">s(\texttt{lpi\_sc})</annotation></semantics></math> allow the benchmark to learn nonlinear relationships between the transformed loss response and the continuous predictors. The basis type <code>bs = "cr"</code> corresponds to cubic regression splines.</p>
+<p>The terms with <code>bs = "re"</code> act as grouped random-effect-style components in <code>mgcv</code>. They allow the model to account for heterogeneity across level-1 regions, level-2 regions, countries, food groups, products, food-group-by-country combinations, and product-by-country combinations. The additional terms involving both <code>year_sc</code> and a grouping factor allow the year effect to vary across level-1 regions, level-2 regions, countries, food groups, products, food-group-by-country combinations, and product-by-country combinations. These terms are included to give the frequentist benchmark a grouped intercept-and-year structure that is more comparable in spirit to the hierarchical Bayesian model, while remaining a distinct frequentist specification.</p>
+<p>The categorical variables <code>stage</code>, <code>method</code>, and <code>source</code> enter as ordinary parametric factors. Their reference levels are kept the same as in the Bayesian workflow: <code>wholesupplychain</code> for stage, <code>Supply utilization accounts</code> for method, and <code>SWS</code> for source.</p>
+</section>
+<section id="selection-of-the-spline-basis-dimensions" class="level3" data-number="8.2.3">
+<h3 data-number="8.2.3" class="anchored" data-anchor-id="selection-of-the-spline-basis-dimensions"><span class="header-section-number">8.2.3</span> Selection of the spline basis dimensions</h3>
+<p>The smooth terms depend on two basis-dimension parameters: <code>k_year</code>, which controls the maximum basis dimension for the year smooth, and <code>k_cov</code>, which controls the maximum basis dimension for the rainfall, temperature, GDP, and LPI smooths. These values were not fixed arbitrarily. Instead, they were selected empirically by searching over a grid of admissible combinations.</p>
+<p>Because the full Gaussian GAMM is computationally heavy, the basis-dimension search was carried out using a lighter auxiliary specification that retained the same smooth terms, the same fixed effects for stage, method, and source, and the main grouping random effects, while omitting the most computationally demanding interaction and varying-slope terms. Candidate models were compared using the <code>mgcv</code> basis-dimension diagnostic together with the fREML criterion. Under this selection rule, the final choice was</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>k</mi><mtext mathvariant="normal">year</mtext></msub><mo>=</mo><mn>12</mn><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>k</mi><mtext mathvariant="normal">cov</mtext></msub><mo>=</mo><mn>18</mn><mo>,</mo></mrow><annotation encoding="application/x-tex">
+k_{\text{year}} = 12, \qquad k_{\text{cov}} = 18,
+</annotation></semantics></math></p>
+<p>because this combination produced no flagged smooth terms in the diagnostic search and attained the lowest fREML score among the admissible candidates considered.</p>
+</section>
+<section id="handling-of-random-effects-in-the-bayesian-model-and-the-gaussian-gamm" class="level3" data-number="8.2.4">
+<h3 data-number="8.2.4" class="anchored" data-anchor-id="handling-of-random-effects-in-the-bayesian-model-and-the-gaussian-gamm"><span class="header-section-number">8.2.4</span> Handling of random effects in the Bayesian model and the Gaussian GAMM</h3>
+<p>The Bayesian model and the Gaussian GAM use the same prediction support logic: predictions are produced only for valid country–product–year combinations supported by production data and by the availability of the required covariates. The main difference is therefore not which objects are predicted, but how random effects are handled when a country, product, or interaction level was not observed in the fitting sample.</p>
+<section id="bayesian-model" class="level4" data-number="8.2.4.1">
+<h4 data-number="8.2.4.1" class="anchored" data-anchor-id="bayesian-model"><span class="header-section-number">8.2.4.1</span> Bayesian model</h4>
+<p>In the Bayesian model, country, product, and interaction effects are latent random variables. For levels observed in the training data, posterior samples of the corresponding effects are used directly. For levels not observed in the training sample, new random effects are simulated from their assumed Gaussian distributions within the prediction routine. As a consequence, predictions for unseen levels are not forced to coincide with the population mean. Instead, each posterior draw contains one simulated realization of the corresponding missing effect.</p>
+<p>For a new country, the Bayesian prediction therefore combines:</p>
+<ol type="1">
+<li>the global and higher-level structure shared with observed countries, and</li>
+<li>a simulated country-specific deviation around zero.</li>
+</ol>
+<p>Accordingly, the Bayesian prediction intervals reflect both posterior uncertainty in the fitted parameters and the additional uncertainty induced by the new latent effects.</p>
+</section>
+<section id="gaussian-gam-fitted-with-random-effect-smooths" class="level4" data-number="8.2.4.2">
+<h4 data-number="8.2.4.2" class="anchored" data-anchor-id="gaussian-gam-fitted-with-random-effect-smooths"><span class="header-section-number">8.2.4.2</span> Gaussian GAM fitted with random-effect smooths</h4>
+<!-- In the Gaussian benchmark, predictions are obtained from a model fitted with `mgcv::bam()`, where grouped random effects are represented through penalized smooth terms of the form `s(..., bs = "re")`. The model is still a generalized additive model, but these `bs = "re"` terms play the role of Gaussian random effects. -->
+<p>When prediction data contain factor levels that were not present during fitting, <code>mgcv</code> sets the contribution of the corresponding random-effect term to zero. This applies not only to simple grouped intercept terms such as <code>s(country_m49, bs = "re")</code>, but also to varying year terms such as <code>s(year_sc, country_m49, bs = "re")</code>.</p>
+<p>Therefore, for a new country, the Gaussian GAM prediction is still informed by all components that are available for that row, including:</p>
+<ul>
+<li>the intercept,</li>
+<li>the parametric effects for stage, method, and source,</li>
+<li>the smooth effects of year and the continuous covariates, and</li>
+<li>any grouped terms whose levels were observed in the training sample.</li>
+</ul>
+<p>Only the missing country-specific contribution is replaced by zero. This does not mean that the whole prediction is zero. It means only that the country-specific deviation is replaced by its mean value under the Gaussian random-effects assumption.</p>
+</section>
+<section id="additional-uncertainty-for-unseen-random-effect-levels" class="level4" data-number="8.2.4.3">
+<h4 data-number="8.2.4.3" class="anchored" data-anchor-id="additional-uncertainty-for-unseen-random-effect-levels"><span class="header-section-number">8.2.4.3</span> Additional uncertainty for unseen random-effect levels</h4>
+<p>Because unseen random-effect levels contribute zero to the fitted mean, the implementation adds an explicit variance correction through the custom function <code>compute_missing_re_var(...)</code>. This function does not alter the point prediction. Instead, it increases the prediction uncertainty on the link scale for rows involving grouping levels that were not observed during fitting.</p>
+<p>For each prediction row, the function checks whether the relevant grouping variables are new, for example:</p>
+<ul>
+<li><code>new_region_l1</code>,</li>
+<li><code>new_region_l2</code>,</li>
+<li><code>new_country_m49</code>,</li>
+<li><code>new_food_group</code>,</li>
+<li><code>new_product</code>,</li>
+<li><code>new_basket_country</code>,</li>
+<li><code>new_product_country</code>.</li>
+</ul>
+<p>If a given grouped level is new, the function adds the estimated variance component for the corresponding grouped intercept term, and where applicable also the variance contribution of the corresponding grouped year-varying term. For example, if a country is new, the variance of the missing country intercept term is added, approximately</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>σ</mi><mrow><mi mathvariant="normal">c</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">y</mi></mrow><mn>2</mn></msubsup><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\sigma^2_{\mathrm{country}}.
+</annotation></semantics></math></p>
+<p>For varying year terms, the additional variance depends on the value of the standardized year. If a country-specific year term is missing, the function adds</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mrow><mi mathvariant="normal">y</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">c</mi></mrow><mi>i</mi><mn>2</mn></msubsup><msubsup><mi>σ</mi><mrow><mi mathvariant="normal">c</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">y</mi><mtext mathvariant="normal">-</mtext><mi mathvariant="normal">y</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">r</mi></mrow><mn>2</mn></msubsup><mo>,</mo></mrow><annotation encoding="application/x-tex">
+\mathrm{year\_sc}_i^2 \sigma^2_{\mathrm{country\mbox{-}year}},
+</annotation></semantics></math></p>
+<p>which follows from the variance formula for a random coefficient of the form</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>b</mi><mrow><mi mathvariant="normal">c</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">y</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mrow><mi mathvariant="normal">y</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">_</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">c</mi></mrow><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">
+b_{\mathrm{country}} \, \mathrm{year\_sc}_i
+</annotation></semantics></math></p>
+<p>with</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>b</mi><mrow><mi mathvariant="normal">c</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">y</mi></mrow></msub><mo>∼</mo><mi>𝒩</mi><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><msubsup><mi>σ</mi><mrow><mi mathvariant="normal">c</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">u</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">t</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">y</mi><mtext mathvariant="normal">-</mtext><mi mathvariant="normal">y</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">r</mi></mrow><mn>2</mn></msubsup><mo stretchy="true" form="postfix">)</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
+b_{\mathrm{country}} \sim \mathcal{N}\!\left(0,\sigma^2_{\mathrm{country\mbox{-}year}}\right).
+</annotation></semantics></math></p>
+<p>The total prediction standard error on the link scale is then computed as the square root of the sum of:</p>
+<ul>
+<li>the standard prediction variance returned by the fitted Gaussian GAM, and</li>
+<li>the additional variance associated with unseen grouped terms.</li>
+</ul>
+<p>Hence, the Gaussian benchmark approximates the uncertainty associated with missing random effects, but it does so differently from the Bayesian model.</p>
+</section>
+<section id="interpretation-of-the-difference" class="level4" data-number="8.2.4.4">
+<h4 data-number="8.2.4.4" class="anchored" data-anchor-id="interpretation-of-the-difference"><span class="header-section-number">8.2.4.4</span> Interpretation of the difference</h4>
+<p>The practical difference between the two models can be summarized as follows.</p>
+<p>In the Bayesian model, unseen random effects are <strong>sampled</strong> from their Gaussian distributions during prediction. In the Gaussian GAM, unseen grouped effects are <strong>not sampled</strong>; their contribution to the point prediction is fixed at zero, while their uncertainty is accounted for approximately through an additional variance term.</p>
+<p>As a result, the two models can predict the same set of valid country–product–year objects, but they do not represent missing country- or product-specific heterogeneity in the same way. The Bayesian model provides a simulation-based treatment of new latent effects, whereas the Gaussian GAM uses a mean-zero plug-in prediction together with an uncertainty inflation step.</p>
+<p>For this reason, the Gaussian GAM should be regarded as a coherent frequentist comparator to the Bayesian workflow, but not as a fully equivalent replacement for the Bayesian hierarchical predictive mechanism.</p>
+</section>
+</section>
+<section id="prediction-and-comparability-with-the-bayesian-model" class="level3" data-number="8.2.5">
+<h3 data-number="8.2.5" class="anchored" data-anchor-id="prediction-and-comparability-with-the-bayesian-model"><span class="header-section-number">8.2.5</span> Prediction and comparability with the Bayesian model</h3>
+<p>Predictions from the Gaussian GAMM are produced over the same country–product–year support used in the Bayesian prediction workflow. The prediction grid is built from the same saved objects used by the Bayesian model, namely the product tree, country grouping table, harvest calendar, GDP, LPI, monthly weather covariates, and production-support table. Only valid country–product–year combinations are retained.</p>
+<p>For each valid combination, predictions are generated separately under the two method settings <code>Supply utilization accounts</code> and <code>Survey</code>, using the same covariate values and the same stored scaling constants. The resulting fitted values are obtained on the cloglog scale, transformed back to the original proportion scale, and accompanied by approximate prediction intervals derived from the fitted Gaussian model.</p>
+<p>This design makes the frequentist outputs directly comparable with the Bayesian prediction objects for both SUA-level and Survey-level food-loss estimates.</p>
+<!-- ### Comparison with the Bayesian model -->
+<!-- To assess how closely the Gaussian GAMM benchmark reproduced the Bayesian predictions, I compared the Gaussian GAMM and Bayesian outputs on the common prediction support, that is, on the set of country--product--year combinations for which both models produced a non-missing prediction after matching on `iso3`, `measureditemcpc`, and `year`. -->
+<!-- For each matched country--product--year combination, I defined -->
+<!-- $$ -->
+<!-- \texttt{diff}_i = \widehat{p}^{\text{GAMM}}_i - \widehat{p}^{\text{Bayes}}_i, -->
+<!-- $$ -->
+<!-- $$ -->
+<!-- \texttt{abs\_diff}_i = \left| \widehat{p}^{\text{GAMM}}_i - \widehat{p}^{\text{Bayes}}_i \right|, -->
+<!-- $$ -->
+<!-- and -->
+<!-- $$ -->
+<!-- \texttt{abs\_rel\_diff}_i = -->
+<!-- \left| -->
+<!-- \frac{\widehat{p}^{\text{GAMM}}_i - \widehat{p}^{\text{Bayes}}_i} -->
+<!-- {\widehat{p}^{\text{Bayes}}_i} -->
+<!-- \right|. -->
+<!-- $$ -->
+<!-- Here, $\widehat{p}^{\text{GAMM}}_i$ denotes the Gaussian GAMM prediction and $\widehat{p}^{\text{Bayes}}_i$ denotes the corresponding Bayesian prediction. -->
+<!-- #### SUA-level comparison -->
+<!-- For the SUA-level predictions, the comparison was based on $598{,}302$ matched country--product--year combinations. The Gaussian GAMM and the Bayesian model were fairly close at this level in absolute terms. The mean signed difference was $0.00027$, indicating almost no systematic average overprediction or underprediction by the Gaussian GAMM relative to the Bayesian model. The mean absolute difference was $0.0120$, the median absolute difference was $0.00872$, and the root mean squared error was $0.0167$. -->
+<!-- In absolute terms, $55.0\%$ of the matched SUA predictions differed by no more than $0.01$, $81.1\%$ differed by no more than $0.02$, and $98.7\%$ differed by no more than $0.05$. In relative terms, $41.7\%$ of the matched SUA predictions differed by no more than $5\%$, $69.1\%$ differed by no more than $10\%$, and $92.8\%$ differed by no more than $20\%$. -->
+<!-- The distribution across absolute relative-difference bands for the SUA-level comparison was as follows: -->
+<!-- | Relative difference band | Count | Share | -->
+<!-- |---|---:|---:| -->
+<!-- | `<= 5%` | 249,220 | 41.7% | -->
+<!-- | `5% to 10%` | 164,378 | 27.5% | -->
+<!-- | `10% to 20%` | 141,735 | 23.7% | -->
+<!-- | `> 20%` | 42,969 | 7.2% | -->
+<!-- The distribution across absolute-difference bands for the SUA-level comparison was as follows: -->
+<!-- | Absolute difference band | Count | Share | -->
+<!-- |---|---:|---:| -->
+<!-- | `<= 0.01` | 329,115 | 55.0% | -->
+<!-- | `0.01 to 0.02` | 156,133 | 26.1% | -->
+<!-- | `0.02 to 0.05` | 105,523 | 17.6% | -->
+<!-- | `> 0.05` | 7,531 | 1.3% | -->
+<!-- Taken together, these results indicate that the Gaussian GAMM benchmark reproduced the Bayesian SUA-level predictions reasonably well for most matched country--product--year combinations, with only a small minority of cases showing large absolute discrepancies. -->
+<!-- To make the interpretation of these bands more concrete, Table \@ref(tab:sua-examples) reports four matched SUA-level examples. The first two rows show that the same absolute difference of `0.01` on the loss scale can correspond to different relative discrepancies depending on the baseline level of loss: for China in 2009 (`21429.02`, walnuts, shelled), the Bayesian and Gaussian GAMM predictions are `0.0875` and `0.0975`, so the absolute difference is `0.01`, which corresponds to an absolute relative difference of `11.4%`; by contrast, for China in 2004 (`23991.03`, homogenized cooked fruit preparation), the predictions are `0.204` and `0.194`, so the same absolute difference of `0.01` corresponds to only `4.9%`. The last two rows show the converse: an absolute relative difference of about `5%` does not necessarily imply the same absolute difference on the loss scale, because that depends on the baseline prediction. -->
+<!-- | Example | Country | ISO3 | Year | Measured item CPC | Crop | Bayesian prediction | Gaussian GAMM prediction | Signed difference | Absolute difference | Absolute relative difference | -->
+<!-- |---|---|---|---:|---|---|---:|---:|---:|---:|---:| -->
+<!-- | low loss, absolute difference about 0.01 | China | CHN | 2009 | 21429.02 | walnuts, shelled | 0.0875 | 0.0975 | 0.01 | 0.01 | 11.4% | -->
+<!-- | high loss, absolute difference about 0.01 | China | CHN | 2004 | 23991.03 | homogenized cooked fruit preparation | 0.204 | 0.194 | -0.01 | 0.01 | 4.9% | -->
+<!-- | low loss, absolute relative difference about 5% | China | CHN | 2011 | 01657 | ginger, raw | 0.0933 | 0.098 | 0.0047 | 0.0047 | 5% | -->
+<!-- | high loss, absolute relative difference about 5% | China | CHN | 2006 | 01342.01 | pears | 0.209 | 0.198 | -0.0104 | 0.0104 | 5% | -->
+<!-- : Illustrative SUA-level examples of absolute and relative differences between Bayesian and Gaussian GAMM predictions  -->
+<!-- #### Survey-level comparison -->
+<!-- For the Survey-level predictions, the comparison was also based on $598{,}302$ matched country--product--year combinations. In this case, the agreement between the two models was clearly weaker than for the SUA-level comparison. The mean signed difference was $0.0243$, indicating that the Gaussian GAMM tended on average to produce higher Survey-level predictions than the Bayesian model. The mean absolute difference was $0.0259$, the median absolute difference was $0.0212$, and the root mean squared error was $0.0329$. -->
+<!-- In relative terms, $16.9\%$ of the matched Survey predictions differed by no more than $5\%$, $35.1\%$ differed by no more than $10\%$, and $73.6\%$ differed by no more than $20\%$. In absolute terms, $22.2\%$ differed by no more than $0.01$, $47.2\%$ differed by no more than $0.02$, and $88.2\%$ differed by no more than $0.05$. -->
+<!-- The distribution across absolute relative-difference bands for the Survey-level comparison was as follows: -->
+<!-- | Relative difference band | Count | Share | -->
+<!-- |---|---:|---:| -->
+<!-- | `<= 5%` | 101,133 | 16.9% | -->
+<!-- | `5% to 10%` | 108,765 | 18.2% | -->
+<!-- | `10% to 20%` | 230,202 | 38.5% | -->
+<!-- | `> 20%` | 158,202 | 26.4% | -->
+<!-- The distribution across absolute-difference bands for the Survey-level comparison was as follows: -->
+<!-- | Absolute difference band | Count | Share | -->
+<!-- |---|---:|---:| -->
+<!-- | `<= 0.01` | 132,806 | 22.2% | -->
+<!-- | `0.01 to 0.02` | 149,650 | 25.0% | -->
+<!-- | `0.02 to 0.05` | 245,107 | 41.0% | -->
+<!-- | `> 0.05` | 70,739 | 11.8% | -->
+<!-- Overall, the comparison shows that the Gaussian GAMM benchmark remained substantially closer to the Bayesian model at the SUA level than at the Survey level. The Survey-level discrepancies are larger both in absolute and relative terms, which is consistent with the fact that the Survey predictions depend more strongly on how the two modelling frameworks represent method-related effects. -->
+</section>
+</section>
+</section>
+<section id="comparison-of-flp-and-fli-across-alternative-food-loss-estimation-methods" class="level1" data-number="9">
+<h1 data-number="9"><span class="header-section-number">9</span> Comparison of FLP and FLI across alternative food loss estimation methods</h1>
+<p>To compare the different food loss estimation approaches on a common basis, I computed the <code>Food Loss Percentage (FLP)</code> and the <code>Food Loss Index (FLI)</code> from the loss estimates produced by:</p>
+<ol type="1">
+<li>the <strong>baseline Bayesian model</strong>,</li>
+<li>the <strong>Bayesian model with alternative priors</strong>, and</li>
+<li>the <strong>frequentist Gaussian GAMM approach</strong>.</li>
+</ol>
+<p>The comparison was carried out separately for the estimated food loss series corresponding to the SUA and Survey methods. The purpose of this exercise was to evaluate how the different modelling approaches translate into the final SDG-style indicators when they are processed through the same downstream index-construction framework.</p>
+<p>Since the loss estimates produced by the different models are not identical in how they are obtained, a direct comparison of raw loss ratios alone is not sufficient.</p>
+<p>To make the comparison interpretable, I used the same quantity base, the same price weights, the same commodity basket rule, and the same aggregation code for all methods. This ensures that the observed differences in FLP and FLI are driven by the estimated loss ratios themselves, rather than by differences in the downstream index construction.</p>
+<p>For this comparison exercise, the FLP and FLI were constructed using production only as the quantity base (the base quantities were derived from production data <code>5510</code>).</p>
+<!-- This means that the base quantities were derived from production data (`5510`) only, without applying the legacy import-dependent adjustment that, in older scripts, replaced the quantity base by production plus imports for selected country-product pairs. -->
+<p>This choice is important for interpretation:</p>
+<ul>
+<li>the comparison is coherent across methods, because the same production-only base is used everywhere;</li>
+<li>however, the resulting FLP and FLI values are comparison-oriented indicators, not necessarily exact reproductions of legacy official outputs generated under different quantity-base conventions.</li>
+</ul>
+<p>For each modelling approach, the loss input was a country-product-year loss ratio:</p>
+<ul>
+<li>for the Bayesian baseline model and the Bayesian model with alternative priors, I used the saved posterior median loss ratios;</li>
+<li>for the frequentist Gaussian GAMM approach, I used the corresponding fitted point estimates.</li>
+</ul>
+<section id="calculation-of-flp-and-fli" class="level2" data-number="9.1">
+<h2 data-number="9.1" class="anchored" data-anchor-id="calculation-of-flp-and-fli"><span class="header-section-number">9.1</span> Calculation of FLP and FLI</h2>
+<p>Let <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>l</mi><mrow><mi>c</mi><mo>,</mo><mi>i</mi><mo>,</mo><mi>t</mi></mrow></msub><annotation encoding="application/x-tex">l_{c,i,t}</annotation></semantics></math> denote the estimated loss ratio for country (c), commodity (i), and year (t). For the comparison exercise, the base-period quantity was defined as:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>q</mi><mrow><mi>c</mi><mo>,</mo><mi>i</mi></mrow><mn>0</mn></msubsup><mo>=</mo><mfrac><mn>1</mn><mn>3</mn></mfrac><munderover><mo>∑</mo><mrow><mi>y</mi><mo>=</mo><mn>2014</mn></mrow><mn>2016</mn></munderover><msub><mi>q</mi><mrow><mi>c</mi><mo>,</mo><mi>i</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">
+q_{c,i}^{0} = \frac{1}{3}\sum_{y=2014}^{2016} q_{c,i,y}
+</annotation></semantics></math></p>
+<p>where <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>q</mi><mrow><mi>c</mi><mo>,</mo><mi>i</mi><mo>,</mo><mi>y</mi></mrow></msub><annotation encoding="application/x-tex">q_{c,i,y}</annotation></semantics></math> is the production quantity of commodity <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math> in country <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math> and year <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>. <!-- Thus, in this comparison, the quantity base was derived from production only and not from a production-plus-imports aggregate. --></p>
+<p>Let <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>p</mi><mi>i</mi><mn>0</mn></msubsup><annotation encoding="application/x-tex">p_i^{0}</annotation></semantics></math> denote the international price of commodity <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math> in the reference year. The corresponding base-period value weight is then:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>p</mi><mi>i</mi><mn>0</mn></msubsup><msubsup><mi>q</mi><mrow><mi>c</mi><mo>,</mo><mi>i</mi></mrow><mn>0</mn></msubsup><mi>.</mi></mrow><annotation encoding="application/x-tex">
+p_i^{0} q_{c,i}^{0}.
+</annotation></semantics></math></p>
+<p>The commodity basket was defined using the GFLI basket classification. Commodities classified as <code>"Other"</code> were excluded. Within each country and GFLI food group, commodities were ranked by their base-period production value <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>p</mi><mi>i</mi><mn>0</mn></msubsup><msubsup><mi>q</mi><mrow><mi>c</mi><mo>,</mo><mi>i</mi></mrow><mn>0</mn></msubsup></mrow><annotation encoding="application/x-tex">p_i^{0} q_{c,i}^{0}</annotation></semantics></math>, and the selected basket was used consistently across all methods compared.</p>
+<p>For a given aggregation <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>g</mi><annotation encoding="application/x-tex">g</annotation></semantics></math> and year <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>, the <code>Food Loss Percentage (FLP)</code> was calculated as:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mi>L</mi><msub><mi>P</mi><mrow><mi>g</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><mfrac><mrow><munder><mo>∑</mo><mrow><mo stretchy="false" form="prefix">(</mo><mi>c</mi><mo>,</mo><mi>i</mi><mo stretchy="false" form="postfix">)</mo><mo>∈</mo><msub><mi>B</mi><mi>g</mi></msub></mrow></munder><msub><mi>l</mi><mrow><mi>c</mi><mo>,</mo><mi>i</mi><mo>,</mo><mi>t</mi></mrow></msub><mspace width="0.167em"></mspace><msubsup><mi>p</mi><mi>i</mi><mn>0</mn></msubsup><msubsup><mi>q</mi><mrow><mi>c</mi><mo>,</mo><mi>i</mi></mrow><mn>0</mn></msubsup></mrow><mrow><munder><mo>∑</mo><mrow><mo stretchy="false" form="prefix">(</mo><mi>c</mi><mo>,</mo><mi>i</mi><mo stretchy="false" form="postfix">)</mo><mo>∈</mo><msub><mi>B</mi><mi>g</mi></msub></mrow></munder><msubsup><mi>p</mi><mi>i</mi><mn>0</mn></msubsup><msubsup><mi>q</mi><mrow><mi>c</mi><mo>,</mo><mi>i</mi></mrow><mn>0</mn></msubsup></mrow></mfrac><mo>,</mo></mrow><annotation encoding="application/x-tex">
+FLP_{g,t} =
+\frac{
+\sum_{(c,i)\in B_g} l_{c,i,t}\, p_i^{0} q_{c,i}^{0}
+}{
+\sum_{(c,i)\in B_g} p_i^{0} q_{c,i}^{0}
+},
+</annotation></semantics></math></p>
+<p>where <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>B</mi><mi>g</mi></msub><annotation encoding="application/x-tex">B_g</annotation></semantics></math> denotes the set of basket commodities included in aggregation <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>g</mi><annotation encoding="application/x-tex">g</annotation></semantics></math>.</p>
+<p>The <code>Food Loss Index (FLI)</code> was then obtained by expressing the annual FLP relative to its reference-period level:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mi>L</mi><msub><mi>I</mi><mrow><mi>g</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><mn>100</mn><mo>×</mo><mfrac><mrow><mi>F</mi><mi>L</mi><msub><mi>P</mi><mrow><mi>g</mi><mo>,</mo><mi>t</mi></mrow></msub></mrow><mrow><mi>F</mi><mi>L</mi><msub><mi>P</mi><mrow><mi>g</mi><mo>,</mo><mrow><mi mathvariant="normal">r</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">f</mi></mrow></mrow></msub></mrow></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
+FLI_{g,t} = 100 \times \frac{FLP_{g,t}}{FLP_{g,\mathrm{ref}}}.
+</annotation></semantics></math></p>
+<p>Accordingly, the comparison across estimation methods was based on the same FLP and FLI formulas, the same international price weights, the same basket construction rule, and the same production-only quantity base.</p>
+</section>
+<section id="interpretation-of-the-comparison" class="level2" data-number="9.2">
+<h2 data-number="9.2" class="anchored" data-anchor-id="interpretation-of-the-comparison"><span class="header-section-number">9.2</span> Interpretation of the comparison</h2>
+<p>This procedure yields a comparison of the three modelling approaches under a shared index-construction framework. The resulting differences in FLP and FLI therefore reflect differences in the estimated loss ratios produced by the methods, while holding fixed:</p>
+<ul>
+<li>the production-only quantity base,</li>
+<li>the international price weights,</li>
+<li>the commodity basket rule, and</li>
+<li>the aggregation procedure.</li>
+</ul>
+<p>This makes the comparison suitable for methodological assessment. At the same time, because I deliberately used a production-only quantity base for all methods, these comparison results should be interpreted as <strong>harmonized comparison indicators</strong>, rather than as an attempt to exactly reproduce every legacy official series under its original conventions.</p>
+</section>
+<section id="distribution-of-flp-and-fli-across-methods" class="level2" data-number="9.3">
+<h2 data-number="9.3" class="anchored" data-anchor-id="distribution-of-flp-and-fli-across-methods"><span class="header-section-number">9.3</span> Distribution of FLP and FLI across methods</h2>
+<p>Before comparing pairwise differences in the Food Loss Percentage (FLP) and the Food Loss Index (FLI), it is useful to look at the overall distribution of the FLP values produced by the three estimation approaches at the SUA level. This provides a first descriptive view of whether the methods generate broadly similar ranges and shapes of estimated food-loss percentages before focusing on observation-by-observation deviations.</p>
+<p><a href="#fig-flp-density-sua1" class="quarto-xref">Figure&nbsp;1</a> and <a href="#fig-flp-density-sua2" class="quarto-xref">Figure&nbsp;2</a> show kernel density estimates of the FLP distributions for the baseline Bayesian model, the Bayesian model with alternative priors, and the frequentist GAMM benchmark, separately for the four aggregation outputs considered in the comparison exercise: world-to-countries, food groups, SDG regions, and SDG-region-by-food-group.</p>
+<div id="fig-flp-density-sua1" class="quarto-layout-panel">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-flp-density-sua1-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="quarto-layout-row">
+<div class="quarto-layout-cell-subref quarto-layout-cell" data-ref-parent="fig-flp-density-sua1" style="flex-basis: 50.0%;justify-content: flex-start;">
+<div id="fig-flp-density-sua-world" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-subfloat-fig figure">
+<div aria-describedby="fig-flp-density-sua-world-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./images/density_FLP_world_to_countries_SUA.png" class="img-fluid figure-img" style="width:100.0%" data-ref-parent="fig-flp-density-sua1">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-flp-density-sua-world-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+(a) World-to-countries
+</figcaption>
+</figure>
+</div>
+</div>
+<div class="quarto-layout-cell-subref quarto-layout-cell" data-ref-parent="fig-flp-density-sua1" style="flex-basis: 50.0%;justify-content: flex-start;">
+<div id="fig-flp-density-sua-food-groups" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-subfloat-fig figure">
+<div aria-describedby="fig-flp-density-sua-food-groups-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./images/density_FLP_food_groups_SUA.png" class="img-fluid figure-img" style="width:100.0%" data-ref-parent="fig-flp-density-sua1">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-flp-density-sua-food-groups-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+(b) Food groups
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-flp-density-sua1-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Kernel density estimates of FLP values at the SUA level for the baseline Bayesian model, the Bayesian model with alternative priors, and the frequentist GAMM benchmark.
+</figcaption>
+</figure>
+</div>
+<div id="fig-flp-density-sua2" class="quarto-layout-panel">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-flp-density-sua2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="quarto-layout-row">
+<div class="quarto-layout-cell-subref quarto-layout-cell" data-ref-parent="fig-flp-density-sua2" style="flex-basis: 50.0%;justify-content: flex-start;">
+<div id="fig-flp-density-sua-sdg" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-subfloat-fig figure">
+<div aria-describedby="fig-flp-density-sua-sdg-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./images/density_FLP_sdg_regions_SUA.png" class="img-fluid figure-img" style="width:100.0%" data-ref-parent="fig-flp-density-sua2">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-flp-density-sua-sdg-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+(a) SDG regions
+</figcaption>
+</figure>
+</div>
+</div>
+<div class="quarto-layout-cell-subref quarto-layout-cell" data-ref-parent="fig-flp-density-sua2" style="flex-basis: 50.0%;justify-content: flex-start;">
+<div id="fig-flp-density-sua-sdg-regions-and-food-groups" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-subfloat-fig figure">
+<div aria-describedby="fig-flp-density-sua-sdg-regions-and-food-groups-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./images/density_FLP_sdg_regions_and_food_groups_SUA.png" class="img-fluid figure-img" style="width:100.0%" data-ref-parent="fig-flp-density-sua2">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-flp-density-sua-sdg-regions-and-food-groups-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+(b) SDG regions and food groups
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-flp-density-sua2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: Kernel density estimates of FLP values at the SUA level for the baseline Bayesian model, the Bayesian model with alternative priors, and the frequentist GAMM benchmark.
+</figcaption>
+</figure>
+</div>
+</section>
+<section id="grafical-comparison-of-flp-estimates" class="level2" data-number="9.4">
+<h2 data-number="9.4" class="anchored" data-anchor-id="grafical-comparison-of-flp-estimates"><span class="header-section-number">9.4</span> Grafical comparison of FLP estimates</h2>
+<p><a href="#fig-food_groups_sua_survey" class="quarto-xref">Figure&nbsp;3</a>, <a href="#fig-sdg_regions_sua_survey" class="quarto-xref">Figure&nbsp;4</a>, <a href="#fig-sdg_regions_by_food_sua_survey" class="quarto-xref">Figure&nbsp;5</a> and <a href="#fig-world_flp_sua_survey" class="quarto-xref">Figure&nbsp;6</a> provide a graphical comparison of the FLP estimates obtained under the three model specifications. The purpose is to compare the estimated FLP levels directly across methods and aggregation levels. The figures are reported for food groups, SDG regions, SDG region by food group combinations, and the world aggregate over time, separately for the SUA and Survey settings. For the graphical FLP comparison, the focus is restricted to the year 2023. This choice was made because the QA outputs for 2024 showed incomplete coverage for some country–product combinations. Since the FLP aggregation is computed from the observations available in a given year, missing high-weight or high-loss combinations could distort the resulting aggregates and reduce comparability across methods and aggregation levels.</p>
+<p>At the food-group level, the baseline Bayesian model and the Bayesian model with alternative priors are almost indistinguishable in both the SUA and Survey outputs. In both settings,<em>Fruits &amp; Vegetables</em> show the highest FLP, while <em>Cereals &amp; Pulses</em> show the lowest. The frequentist GAMM is more distinct. In the SUA results it is lower than the Bayesian estimates for <em>Fruits &amp; Vegetables</em> and <em>Meat &amp; Animals Products</em>, while it is slightly higher for <em>Cereals &amp; Pulses</em> and <em>Roots, Tubers &amp; Oil-Bearing Crops</em>. In the Survey results, the frequentist GAMM is above both Bayesian specifications for all four food groups, with the largest visible differences for <em>Fruits &amp; Vegetables</em>, <em>Roots, Tubers &amp; Oil-Bearing Crops</em>, and <em>Cereals &amp; Pulses</em>.</p>
+<p>A similar picture emerges at the SDG-region level. Again, the two Bayesian specifications remain very close across all regions, both for SUA and for Survey. The frequentist GAMM differs more substantially. In the SUA results, it is below the Bayesian estimates in some regions and above them in others, so the differences do not move in a single direction. In the Survey results, however, it is consistently above both Bayesian models in all reported SDG regions. The highest FLP values are observed for <em>Sub-Saharan Africa</em>, while the lowest values are observed for <em>Northern America and Europe</em> and <em>Australia and New Zealand</em>.</p>
+<p>The SDG-region-by-food-group figures provide a finer level of detail. Also in these plots, the baseline Bayesian and the Bayesian alternative-prior specifications remain nearly superposed in almost all region–food group combinations. The frequentist GAMM shows a more variable behaviour. In the SUA setting, it may be either above or below the Bayesian values depending on the specific combination considered. In the Survey setting, it is more often above the Bayesian values, especially for <em>Fruits &amp; Vegetables</em> and <em>Roots, Tubers &amp; Oil-Bearing Crops</em>, although the magnitude of the gap still depends on the region.</p>
+<p>Finally, the world time-series plots confirm the same general pattern over the whole considered period. The two Bayesian specifications remain extremely close and evolve smoothly over time in both the SUA and Survey series. By contrast, the frequentist GAMM shows a visibly different trajectory. In the SUA series it oscillates more strongly around the Bayesian curves, while in the Survey series it remains clearly above them throughout the entire period shown. These world-level plots therefore reinforce the main descriptive conclusion of the graphical comparison: the alternative-prior Bayesian specification remains very close to the baseline Bayesian model, whereas the frequentist GAMM produces the most visibly different FLP patterns, especially in the Survey setting.</p>
+<div id="fig-food_groups_sua_survey" class="quarto-layout-panel">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-food_groups_sua_survey-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="quarto-layout-row">
+<div class="quarto-layout-cell-subref quarto-layout-cell" data-ref-parent="fig-food_groups_sua_survey" style="flex-basis: 50.0%;justify-content: flex-start;">
+<div id="fig-food-groups-flp-sua" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-subfloat-fig figure">
+<div aria-describedby="fig-food-groups-flp-sua-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./images/food_groups_FLP_SUA.png" class="img-fluid figure-img" style="width:100.0%" data-ref-parent="fig-food_groups_sua_survey">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-food-groups-flp-sua-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+(a) Food groups sua
+</figcaption>
+</figure>
+</div>
+</div>
+<div class="quarto-layout-cell-subref quarto-layout-cell" data-ref-parent="fig-food_groups_sua_survey" style="flex-basis: 50.0%;justify-content: flex-start;">
+<div id="fig-food-groups-flp-survey" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-subfloat-fig figure">
+<div aria-describedby="fig-food-groups-flp-survey-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./images/food_groups_FLP_Survey.png" class="img-fluid figure-img" style="width:100.0%" data-ref-parent="fig-food_groups_sua_survey">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-food-groups-flp-survey-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+(b) Food groups survey
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-food_groups_sua_survey-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3: FLP by food group under the three model specifications.
+</figcaption>
+</figure>
+</div>
+<div id="fig-sdg_regions_sua_survey" class="quarto-layout-panel">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-sdg_regions_sua_survey-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="quarto-layout-row">
+<div class="quarto-layout-cell-subref quarto-layout-cell" data-ref-parent="fig-sdg_regions_sua_survey" style="flex-basis: 50.0%;justify-content: flex-start;">
+<div id="fig-sdg-regions-sua" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-subfloat-fig figure">
+<div aria-describedby="fig-sdg-regions-sua-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./images/sdg_regions_FLP_SUA.png" class="img-fluid figure-img" style="width:100.0%" data-ref-parent="fig-sdg_regions_sua_survey">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-sdg-regions-sua-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+(a) SDG regions sua
+</figcaption>
+</figure>
+</div>
+</div>
+<div class="quarto-layout-cell-subref quarto-layout-cell" data-ref-parent="fig-sdg_regions_sua_survey" style="flex-basis: 50.0%;justify-content: flex-start;">
+<div id="fig-sdg-regions-survey" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-subfloat-fig figure">
+<div aria-describedby="fig-sdg-regions-survey-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./images/sdg_regions_FLP_Survey.png" class="img-fluid figure-img" style="width:100.0%" data-ref-parent="fig-sdg_regions_sua_survey">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-sdg-regions-survey-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+(b) SDG regions survey
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-sdg_regions_sua_survey-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;4: FLP by SDG region under the three model specifications.
+</figcaption>
+</figure>
+</div>
+<div id="fig-sdg_regions_by_food_sua_survey" class="quarto-layout-panel">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-sdg_regions_by_food_sua_survey-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="quarto-layout-row">
+<div class="quarto-layout-cell-subref quarto-layout-cell" data-ref-parent="fig-sdg_regions_by_food_sua_survey" style="flex-basis: 50.0%;justify-content: flex-start;">
+<div id="fig-sdg-by-food-sua" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-subfloat-fig figure">
+<div aria-describedby="fig-sdg-by-food-sua-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./images/sdg_by_food_FLP_SUA.png" class="img-fluid figure-img" style="width:100.0%" data-ref-parent="fig-sdg_regions_by_food_sua_survey">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-sdg-by-food-sua-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+(a) SDG regions by food sua
+</figcaption>
+</figure>
+</div>
+</div>
+<div class="quarto-layout-cell-subref quarto-layout-cell" data-ref-parent="fig-sdg_regions_by_food_sua_survey" style="flex-basis: 50.0%;justify-content: flex-start;">
+<div id="fig-sdg-by-food-survey" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-subfloat-fig figure">
+<div aria-describedby="fig-sdg-by-food-survey-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./images/sdg_by_food_FLP_Survey.png" class="img-fluid figure-img" style="width:100.0%" data-ref-parent="fig-sdg_regions_by_food_sua_survey">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-sdg-by-food-survey-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+(b) SDG regions by food survey
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-sdg_regions_by_food_sua_survey-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;5: FLP by SDG region and food group under the three model specifications.
+</figcaption>
+</figure>
+</div>
+<div id="fig-world_flp_sua_survey" class="quarto-layout-panel">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-world_flp_sua_survey-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="quarto-layout-row">
+<div class="quarto-layout-cell-subref quarto-layout-cell" data-ref-parent="fig-world_flp_sua_survey" style="flex-basis: 50.0%;justify-content: flex-start;">
+<div id="fig-world-time-sua" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-subfloat-fig figure">
+<div aria-describedby="fig-world-time-sua-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./images/world_timeseries_FLP_SUA.png" class="img-fluid figure-img" style="width:100.0%" data-ref-parent="fig-world_flp_sua_survey">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-world-time-sua-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+(a) World FLP sua
+</figcaption>
+</figure>
+</div>
+</div>
+<div class="quarto-layout-cell-subref quarto-layout-cell" data-ref-parent="fig-world_flp_sua_survey" style="flex-basis: 50.0%;justify-content: flex-start;">
+<div id="fig-world-time-survey" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-subfloat-fig figure">
+<div aria-describedby="fig-world-time-survey-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="./images/world_timeseries_FLP_Survey.png" class="img-fluid figure-img" style="width:100.0%" data-ref-parent="fig-world_flp_sua_survey">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-world-time-survey-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+(b) World FLP survey
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-world_flp_sua_survey-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;6: World FLP over time under the three model specifications.
+</figcaption>
+</figure>
+</div>
+</section>
+<section id="main-insights" class="level2" data-number="9.5">
+<h2 data-number="9.5" class="anchored" data-anchor-id="main-insights"><span class="header-section-number">9.5</span> Main insights</h2>
+<p>The comparison exercises show that the baseline Bayesian model and the Bayesian model with alternative priors produce very similar FLP and FLI outputs across all aggregation schemes considered here. The frequentist GAMM benchmark also yields series that are broadly comparable in structure, although the magnitude and spread of the deviations from the baseline Bayesian outputs are generally larger than in the alternative-prior Bayesian comparison. This pattern is visible both in the summary measures and in the graphical analyses of the distribution of deviations.</p>
+<p>These results should be interpreted descriptively. The purpose of the present comparison is not to rank the methods as better or worse, but rather to document how the different modelling choices translate into differences in the final indicator outputs under a harmonized FLP/FLI calculation framework. In this sense, the analysis helps clarify which comparisons are negligible, which are more substantial, and at which aggregation levels the resulting series remain closest or become more distinct.</p>
+<p>Taken together, the results provide a structured basis for understanding the relationship between the three modelling approaches and for interpreting the extent to which differences at the model-estimate level carry through to the derived FLP and FLI indicators.</p>
 </section>
 </section>
 
