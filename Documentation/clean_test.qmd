@@ -37,7 +37,7 @@ This workflow is designed to support reproducible execution by saving intermedia
 
 This document provides technical documentation of the current implementation as reflected in the existing R code. Its purpose is to describe what has been implemented, how the three plugins are connected, what data structures and intermediate outputs are created, and how the final estimates are produced and written back into SWS. 
 
-In the following sections, the workflow is described step by step, beginning with the preparation of covariates, then the construction and fitting of the Bayesian model, and finally the generation and saving of posterior predictions.
+In the following sections, the workflow is described step by step, beginning with the preparation of covariates, then the construction and fitting of the Bayesian model, and the generation and saving of posterior predictions. The final part of the document is dedicated to the alternative modeling strategies that were implemented, including the alternative-prior Bayesian specification considered for robustness assessment, as well as to the comparison of the resulting food loss percentages and food loss indices across methods.
 
 # General workflow
 
@@ -171,7 +171,7 @@ The resulting GDP series is then smoothed separately by country using a Generali
 
 $$log(GDPpercapita) \sim Normal(\alpha_0 + f(year), \sigma^2_{GDP})$$
 
-where $f(year)$ is a smooth function of time. A log transformation on the left-hand side of the equation is used so that the distribution of the model residuals is closer to the assumed Normal distribution and so that the model cannot predict negative GDp per capita values. This model is implemented in the `mgcv` package in `R`, with a cubic spline basis assumed for $f(year)$. For each country, the number of knots for $f(year)$ is specified as the number of years for which GDP per capita estimates are available, divided by four and rounded up.
+where $f(year)$ is a smooth function of time. A log transformation on the left-hand side of the equation is used so that the distribution of the model residuals is closer to the assumed Normal distribution and so that the model cannot predict negative GDP per capita values. This model is implemented in the `mgcv` package in `R`, with a cubic spline basis assumed for $f(year)$. For each country, the number of knots for $f(year)$ is specified as the number of years for which GDP per capita estimates are available, divided by four and rounded up.
 
 The smoothed series is stored in the variable `sm_GDP_percap`, while the unsmoothed combined series is kept as `GDP_percap`. Remaining missing smoothed values are imputed using the mean within `region_l2` and year.
 
@@ -186,13 +186,13 @@ The final GDP output is written to the SWS datatable `gdp_bayesian`, using the v
 
 The Logistics Performance Index covariate is prepared from the World Bank WDI indicator `LP.LPI.OVRL.XQ`. The plugin downloads the raw series for all available countries and years, saves a wide-format extract locally, and then reshapes the data into long format.
 
-After excluding aggregate regions, the plugin joins the LPI observations to the full country-year grid and the smoothed GDP covariate, and then fits a generalized additive model with `mgcv::bam`. The model represents LPI as the sum of a smooth effect of standardized year (`s(year_sc, k = 7)`), a smooth effect of standardized smoothed GDP per capita (`s(sm_GDP_percap_sc)`), a country random intercept (`s(iso3, bs = "re")`), and a country-specific random slope on year (`s(iso3, bs = "re", by = year_sc)`). The smooth term are represented using thin-plate spline basis functions with second-order smoothing penalties. For the year effect, the model uses 7 knots, corresponding to one knot for each year in which observed LPI data are available, while for the smooth effect of smoothed GDP per capita it uses the default basis dimension of 10 knots. The fitted model is then used to predict smoothed LPI values for the full grid of modelling countries and years. More in detail, a single smooth regression modelling approach is implemented:
+After excluding aggregate regions, the plugin joins the LPI observations to the full country-year grid and the smoothed GDP covariate, and then fits a generalized additive model with `mgcv::bam`. The model represents LPI as the sum of a smooth effect of standardized year (`s(year_sc, k = 7)`), a smooth effect of standardized smoothed GDP per capita (`s(sm_GDP_percap_sc)`), a country random intercept (`s(iso3, bs = "re")`), and a country-specific random slope on year (`s(iso3, bs = "re", by = year_sc)`). The smooth terms are represented using thin-plate spline basis functions with second-order smoothing penalties. For the year effect, the model uses 7 knots, corresponding to one knot for each year in which observed LPI data are available, while for the smooth effect of smoothed GDP per capita it uses the default basis dimension of 10 knots. The fitted model is then used to predict smoothed LPI values for the full grid of modelling countries and years. More in detail, a single smooth regression modelling approach is implemented:
 
 $$
 LPI \sim Normal(\beta_0 + f_1 (year) + f_2 (GDPpercapita) + g_1 (country) + g_2(country)\times year, \sigma^2_{LPI})
 $$
 
-where $f_1(year)$ and $f_2(GDPpercapita)$ are smooth functions of centered and scaled year and of smooth GDP per capita, and $g_1$ and $g_2$ are country-level random intercepts and slopes of the centered and scaled year. Thus the two smooth functions pool information across countries for which LPI data were available, to allow prediction in countries without LPI, while the random intecepts and slopes allow for a closer fit for interpolation in countries with data for some years.
+where $f_1(year)$ and $f_2(GDPpercapita)$ are smooth functions of centered and scaled year and of smooth GDP per capita, and $g_1$ and $g_2$ are country-level random intercepts and slopes of the centered and scaled year. Thus the two smooth functions pool information across countries for which LPI data were available, to allow prediction in countries without LPI, while the random intercepts and slopes allow for a closer fit for interpolation in countries with data for some years.
 
  The resulting smoothed LPI series is stored in `sm_lpi` in the intermediate object `LPI_full`, while the original observed series is retained in `lpi`. In the final output written to SWS, these are saved as `lpi_sm` and `lpi_raw`, respectively.
 
@@ -405,7 +405,9 @@ As with GDP, the smoothed variable `sm_lpi` is the one used in the model, while 
 
 The model training dataset is constructed inside the plugin from `FullSet`, which contains the combined observed loss inputs prepared in the preceding steps. This object brings together the reconstructed SWS-derived loss observations and the processed external loss-percentage records.
 
-The plugin first selects the main identifying and descriptive variables needed for modelling, namely country, year, CPC item, supply-chain location, observed loss percentage, data-collection tag, URL, and source identifier. It then joins the food-group information from `fbsTree1` and renames selected variables to obtain the modelling fields `year` and `loss_percentage`. At this stage, the variable `m49_numeric` is also created from `geographicaream49`.
+The plugin first selects the main identifying and descriptive variables needed for modelling, namely country, year, CPC item, supply-chain location, observed loss percentage, data-collection tag, URL, and source identifier. It then joins the food-group information from `fbsTree1` and renames selected variables to obtain the modelling fields `year` and `loss_percentage`. 
+
+<!-- At this stage, the variable `m49_numeric` is also created from `geographicaream49`. -->
 
 The dataset is then converted to a keyed `data.table`, and the variables `m49_numeric`, `year`, and `measureditemcpc` are normalized to the required types. Using a keyed join with `prod_support`, the plugin retains only those observations whose country-product-year combination is supported by the production data. This step ensures that the training data are restricted to valid combinations within the intended modelling support.
 
@@ -592,6 +594,7 @@ More in detail:
 - `c1`, `c2`, and `c3` represent additional categorical effects for stage, method, and source. More in detail, `c1` and `c2` provide additive adjustments to the mean of the model depending on the food supply chain stage and the loss percentage data collection method, respectively. The stage effects are not modelled in any mechanistic way - the model learns overall differences in mean loss percentages at the clogloc level between data points with different supply chain labels. `c3` is a random effect for the data source, intended to capture dependence between data points from the same source, which could share measurement biases or systematic errors. For instance, in the case $c3 (source_i)$ is negative, that suggests that data points from $source_i$ are lower than otherwise expected according to the model. Baseline effects such as `c1[1]`, `c2[1]` and `c3[1]` are fixed to zero because they represent the reference categories for stage, method and source. The remaining category effects are therefore interpreted relative to those baselines.
 
 Therefore:
+
 - `a4` represents country-level intercept and year effects;
 
 - `b2` represents product-level intercept and year effects;
@@ -645,7 +648,7 @@ The core estimation routine is wrapped in `loss_model_run_function`.
 
 This function:
 
-- optionally censors test rows for cross-validation use (i.e. the function can be used in a cross-validation mode, where some observations are temporarily hidden from the model and treated as test data);
+<!-- - optionally censors test rows for cross-validation use (i.e. the function can be used in a cross-validation mode, where some observations are temporarily hidden from the model and treated as test data); -->
 - rescales the continuous covariates using the observed training rows of that run;
 - builds the NIMBLE model;
 - compiles the model;
@@ -1211,7 +1214,8 @@ The covariate outputs produced in the first stage are consumed by the fitting st
 
 For this reason, the outputs should not be viewed as independent products, but rather as successive layers of the same workflow. Each category plays a distinct role: some outputs support reproducibility and computational efficiency, while others provide the final operational estimates intended for use in SWS.
 
-## Summary
+
+# Summary
 
 In summary, the workflow produces:
 
@@ -1223,3 +1227,628 @@ In summary, the workflow produces:
 - final SWS food loss estimate datasets.
 
 Together, these outputs capture the full progression from data preparation to model estimation and finally to operational posterior food loss estimates.
+
+# Alternative methods
+## Bayesian hierarchical method with alternative priors
+In addition to the baseline Bayesian specification, an alternative-prior version of the model was implemented as a sensitivity analysis. The purpose of this variant was to assess how sensitive the resulting food-loss estimates are to the prior assumptions placed on the global components of the linear predictor, while leaving the overall hierarchical structure of the model unchanged.
+
+### Alternative prior specification
+
+In the alternative-prior version of the Bayesian model, the only change concerns the prior distribution assigned to the global coefficient vector $a_1 = (a_{1,1}, \dots, a_{1,6})$. The likelihood, the linear predictor, the hierarchical structure, the factor coding, the covariates, and all lower-level priors remain unchanged. As in the baseline model, the six components of $a_1$ correspond to the global intercept, year effect, rainfall effect, temperature effect, GDP effect, and LPI effect, respectively. In the baseline specification, these global coefficients were assigned diffuse priors of the form
+
+$$
+a_{1,p} \sim \mathcal{N}(0, 10^2), \qquad p = 1, \dots, 6.
+$$
+
+In the alternative-prior specification, these diffuse priors are replaced by coefficient-specific Normal priors, with the intercept treated separately from the remaining five global coefficients.
+
+The prior for the global intercept $a_{1,1}$ is calibrated empirically from the final training data actually used in the fit. Let $p_i \in (0,1)$ denote the fitted loss proportions in `model_data`, and define their complementary log-log transform by
+
+$$
+z_i = \log\bigl(-\log(1-p_i)\bigr).
+$$
+
+The prior mean for the intercept is taken as the sample median of these transformed losses,
+
+$$
+m_0 = \operatorname{median}(z_i),
+$$
+
+while the prior standard deviation is defined as
+
+$$
+s_0 = \max\left(\frac{\operatorname{IQR}(z_i)}{1.349},\ 0.5\right).
+$$
+
+Here $\operatorname{IQR}(z_i)/1.349$ is used as a robust proxy for a standard deviation under a Normal approximation, and the lower bound of $0.5$ prevents the prior from becoming excessively concentrated if the empirical spread of the transformed losses is very small. The resulting intercept prior is therefore
+
+$$
+a_{1,1} \sim \mathcal{N}(m_0, s_0^2).
+$$
+
+This is an empirical, data-informed prior on the cloglog scale, anchored to the overall distribution of transformed loss observations in the final modelling dataset.
+
+For the remaining global coefficients, corresponding to year, rainfall, temperature, GDP, and LPI, the alternative-prior specification imposes tighter zero-centred priors:
+
+$$
+a_{1,p} \sim \mathcal{N}(0, 1^2), \qquad p = 2, \dots, 6.
+$$
+
+These priors are substantially more regularizing than the original $\mathcal{N}(0,10^2)$ formulation. All other priors in the hierarchical model are left unchanged. In particular, the regional effects $a_2$ and $a_3$, the country effects $a_4$, the basket effects $b_1$, the product effects $b_2$, the basket-country effects $b_3$, the product-country effects $b_4$, the stage, method, and source effects $(c_1, c_2, c_3)$, and all variance components retain exactly the same prior distributions as in the baseline Bayesian specification.
+
+<!-- ### Comparison between the baseline and alternative-prior Bayesian models -->
+<!-- To assess the sensitivity of the Bayesian food-loss estimates to the alternative prior specification, I compared the predictions obtained from the baseline Bayesian model with those obtained from the Bayesian model fitted under the alternative priors. Since the two models share the same likelihood, hierarchical structure, covariates, factor coding, and prediction procedure, this comparison isolates the effect of the prior modification itself on the final estimates. -->
+
+<!-- For each country--product--year combination, I defined -->
+
+<!-- $$ -->
+<!-- \texttt{diff}_i = \widehat{p}^{\text{alt}}_i - \widehat{p}^{\text{base}}_i, -->
+<!-- $$ -->
+
+<!-- $$ -->
+<!-- \texttt{abs\_diff}_i = \left| \widehat{p}^{\text{alt}}_i - \widehat{p}^{\text{base}}_i \right|, -->
+<!-- $$ -->
+
+<!-- and -->
+
+<!-- $$ -->
+<!-- \texttt{abs\_rel\_diff}_i = -->
+<!-- \left| -->
+<!-- \frac{\widehat{p}^{\text{alt}}_i - \widehat{p}^{\text{base}}_i} -->
+<!-- {\widehat{p}^{\text{base}}_i} -->
+<!-- \right|. -->
+<!-- $$ -->
+
+<!-- Here, $\widehat{p}^{\text{base}}_i$ denotes the prediction from the baseline Bayesian model and $\widehat{p}^{\text{alt}}_i$ denotes the corresponding prediction from the alternative-prior Bayesian model. -->
+
+<!-- #### SUA-level comparison -->
+<!-- At the SUA level, the two Bayesian specifications produced extremely similar results. The comparison covered $598{,}302$ country--product--year predictions. The mean prediction under the baseline model was $0.149$, while the mean prediction under the alternative-prior model was also $0.149$. The mean signed difference was $-0.000146$, indicating essentially no systematic shift between the two sets of estimates. The mean absolute difference was $0.00125$, the median absolute difference was $0.000947$, and the root mean squared error was $0.00168$. The correlation between the two sets of predictions was effectively $1.000$. -->
+
+<!-- Prediction interval widths were also nearly unchanged. The mean interval width was $0.329$ under both specifications. The mean width difference was $-0.000664$, and the mean absolute width difference was $0.00675$. -->
+
+<!-- In relative terms, almost all SUA predictions remained within $5\%$ of the baseline values. In absolute terms, almost all predictions differed by no more than $0.01$. -->
+
+<!-- The distribution across relative-difference bands was: -->
+
+<!-- | Relative difference band | Count | Share | -->
+<!-- |---|---:|---:| -->
+<!-- | `<= 5%` | 598,184 | 99.98% | -->
+<!-- | `5% to 10%` | 118 | 0.02% | -->
+
+<!-- The distribution across absolute-difference bands was: -->
+
+<!-- | Absolute difference band | Count | Share | -->
+<!-- |---|---:|---:| -->
+<!-- | `<= 0.01` | 598,202 | 99.98% | -->
+<!-- | `0.01 to 0.02` | 100 | 0.02% | -->
+
+
+<!-- ### Illustrative examples of the differences -->
+
+<!-- To make the comparison between the baseline Bayesian model and the alternative-prior Bayesian model more concrete, Table @tbl-altprior-examples shows four illustrative SUA-level prediction pairs. These examples were selected only for interpretation and are not intended to be representative of the whole prediction set. -->
+
+<!-- They help distinguish between two different notions of discrepancy: -->
+
+<!-- - the **absolute difference**, reported on the original loss-proportion scale; -->
+<!-- - the **absolute relative difference**, reported as a percentage of the baseline prediction. -->
+
+<!-- An absolute difference of, for example, $0.01$ means that the two predictions differ by $0.01$ on the $[0,1]$ loss scale, that is, by 1 percentage point. By contrast, the absolute relative difference rescales the same gap by the baseline prediction, so that the discrepancy is interpreted relative to the predicted loss level itself. -->
+
+<!-- For instance, in the first example the baseline prediction is $0.101$ and the alternative-prior prediction is $0.106$, so the absolute difference is $0.0044$. On the original scale, this corresponds to a difference of 0.44 percentage points. Relative to the baseline prediction, however, this gap corresponds to $4.3\%$. -->
+
+<!-- Similarly, in the second example the baseline and alternative-prior predictions are $0.221$ and $0.230$, respectively. Here the absolute difference is $0.009$, which corresponds to 0.9 percentage points, while the absolute relative difference is $4.1\%$. -->
+
+<!-- These examples illustrate why it is useful to report both absolute and relative discrepancies. The absolute difference shows the size of the gap on the original food-loss scale, while the relative difference shows how large that gap is compared with the baseline prediction. In the present comparison, both measures remain very small, which is consistent with the overall conclusion that the model outputs are highly robust to the alternative prior specification. -->
+
+<!-- | Example | ISO3 | Year | CPC item | Baseline prediction | Alternative-prior prediction | Difference | Absolute difference | Absolute relative difference | -->
+<!-- |:---|:---:|---:|:---:|---:|---:|---:|---:|---:| -->
+<!-- | low loss, absolute difference about 0.01 | CHN | 1998 | 0116 | 0.101 | 0.106 | 0.0044 | 0.0044 | 4.3% | -->
+<!-- | high loss, absolute difference about 0.01 | CHN | 2003 | 01214 | 0.221 | 0.23 | 0.009 | 0.009 | 4.1% | -->
+<!-- | low loss, absolute relative difference about 5% | CHN | 1991 | 01373 | 0.0806 | 0.0844 | 0.0039 | 0.0039 | 4.8% | -->
+<!-- | high loss, absolute relative difference about 5% | CHN | 1994 | 01342.01 | 0.196 | 0.205 | 0.0087 | 0.0087 | 4.4% | -->
+
+<!-- : Illustrative examples of baseline versus alternative-prior Bayesian SUA predictions. {#tbl-altprior-examples} -->
+
+
+<!-- #### Survey-level comparison -->
+
+<!-- The same pattern appeared for the Survey-level predictions. Again, the comparison covered $598{,}302$ country--product--year predictions. The mean prediction under the baseline model was $0.174$, compared with $0.173$ under the alternative-prior model. The mean signed difference was $-0.000589$, the mean absolute difference was $0.00152$, the median absolute difference was $0.00116$, and the root mean squared error was $0.00202$. The correlation between the two sets of predictions was again effectively $1.000$. -->
+
+<!-- Prediction interval widths were likewise very similar. The mean interval width was $0.373$ under the baseline model and $0.371$ under the alternative-prior model. The mean width difference was $-0.00122$, and the mean absolute width difference was $0.00738$. -->
+
+<!-- As in the SUA comparison, almost all Survey predictions remained within $5\%$ of the baseline values, and almost all absolute differences were no greater than $0.01$. -->
+
+<!-- The distribution across relative-difference bands was: -->
+
+<!-- | Relative difference band | Count | Share | -->
+<!-- |---|---:|---:| -->
+<!-- | `<= 5%` | 598,238 | 99.99% | -->
+<!-- | `5% to 10%` | 64 | 0.01% | -->
+
+<!-- The distribution across absolute-difference bands was: -->
+
+<!-- | Absolute difference band | Count | Share | -->
+<!-- |---|---:|---:| -->
+<!-- | `<= 0.01` | 598,063 | 99.96% | -->
+<!-- | `0.01 to 0.02` | 239 | 0.04% | -->
+
+<!-- ### Interpretation -->
+
+<!-- Taken together, these results indicate that the Bayesian food-loss estimates are highly robust to the alternative prior specification considered here. The differences between the baseline and alternative-prior predictions are extremely small in both the SUA and Survey outputs, not only on average but also across the full distribution of predictions. -->
+
+<!-- Even the largest discrepancies remain modest in absolute magnitude. This suggests that, in the present application, the posterior estimates are driven primarily by the data and by the hierarchical model structure rather than by the specific prior choice used for the global coefficients. Accordingly, the alternative-prior exercise supports the conclusion that the baseline Bayesian results are stable with respect to this prior modification. -->
+
+## Frequentist benchmark: Gaussian GAM with random effects
+To provide a frequentist benchmark against the hierarchical Bayesian food loss model, I implemented a generalized additive mixed model (GAMM) using the `mgcv` package, fitted with `bam()` for computational efficiency on a relatively large training dataset. The purpose of this benchmark is not to replicate the Bayesian model exactly, but to produce an alternative set of model-based food loss estimates using the same training data structure, the same core covariates, and a closely related linear predictor specification. This makes it possible to compare the resulting estimates with the Bayesian outputs and assess how sensitive the final predictions are to the modelling framework.
+
+The benchmark starts from the same final `model_data` object used for the Bayesian fit, so it relies on the same cleaned and preprocessed observations, the same harmonized stage, method, and source variables, the same joined climate and macroeconomic covariates, and the same restriction to valid country--product--year combinations supported by production data. In this sense, the frequentist benchmark is designed to be closely aligned in data pipeline and prediction support to the Bayesian workflow while replacing posterior simulation with penalized likelihood estimation.
+
+### Model specification
+
+The response variable is `loss_percentage`, which is a proportion in the open interval $(0,1)$. In order to fit a Gaussian model on an unrestricted scale, the response is transformed using the complementary log-log transformation
+
+$$
+\eta_i = \log\bigl(-\log(1-p_i)\bigr),
+$$
+
+where $p_i$ denotes the observed loss proportion for observation $i$. Predictions are mapped back to the original proportion scale using the inverse transformation
+
+$$
+p_i = 1 - \exp\bigl(-\exp(\eta_i)\bigr).
+$$
+
+This choice keeps the frequentist benchmark close to the Bayesian model, which is also formulated on the cloglog-transformed response scale.
+
+The model uses the same continuous predictors as the Bayesian model: year, rainfall, temperature, GDP per capita, and LPI. Before fitting, these variables are standardized using the training data. Year, temperature, GDP, and LPI are centered and scaled directly, while rainfall is first transformed as $\log(\texttt{rainfall}+1)$ and then standardized. The same scaling constants are stored and reused at prediction time so that new country--product--year combinations are transformed consistently with the training data.
+
+
+
+Let
+
+$$
+y_i^{\ast} = \log\bigl(-\log(1-p_i)\bigr)
+$$
+
+denote the cloglog-transformed loss proportion for observation $i$, where $p_i \in (0,1)$ is the observed loss proportion. The Gaussian GAMM assumes
+
+$$
+y_i^{\ast} \sim \mathcal{N}(\mu_i, \sigma^2).
+$$
+
+The linear predictor can be written schematically as
+
+$$
+\mu_i
+=
+\alpha
++
+\sum_{j=1}^{5} f_j(X_{ij})
++
+\sum_{h=1}^{7} u_h\!\bigl(G_i^{(h)}\bigr)
++
+\sum_{r=1}^{7} v_r\!\bigl(H_i^{(r)}\bigr)\,\mathrm{year\_sc}_i
++
+c^{(1)}_{\mathrm{stage}(i)}
++
+c^{(2)}_{\mathrm{method}(i)}
++
+c^{(3)}_{\mathrm{source}(i)}.
+$$
+
+Here:
+
+- $X_{ij}$ denotes the five standardized continuous predictors,
+  $$
+  (\mathrm{year\_sc}_i,\ \mathrm{rain\_sc}_i,\ \mathrm{temp\_sc}_i,\ \mathrm{gdp\_sc}_i,\ \mathrm{lpi\_sc}_i);
+  $$
+- $G_i^{(h)}$ denotes the seven grouping variables that receive random-intercept-style effects,
+  $$
+  \mathrm{region\_l1},\ \mathrm{region\_l2},\ \mathrm{country\_m49},\ \mathrm{food\_group},\ \mathrm{product},\ \mathrm{basket\_country},\ \mathrm{product\_country};
+  $$
+- $H_i^{(r)}$ denotes the seven grouping variables that receive year-varying random-effect-style terms,
+  $$
+  \mathrm{region\_l1},\ \mathrm{region\_l2},\ \mathrm{country\_m49},\ \mathrm{food\_group},\ \mathrm{product},\ \mathrm{basket\_country},\ \mathrm{product\_country}.
+  $$
+
+In this representation, the terms $f_j(\cdot)$ denote the smooth effects of the five continuous predictors, the terms $u_h(\cdot)$ denote grouped random-effect-style deviations in the intercept, and the terms $v_r(\cdot)\,\mathrm{year\_sc}_i$ denote grouped deviations in the year effect. The terms $c^{(1)}_{\mathrm{stage}(i)}$, $c^{(2)}_{\mathrm{method}(i)}$, and $c^{(3)}_{\mathrm{source}(i)}$ are ordinary categorical effects for stage, method, and source.
+
+This compact expression is a schematic mathematical representation of the fitted GAMM. The exact implementation in `mgcv` is:
+
+```r
+form <- y_cloglog ~
+  stage + method + source +
+  s(year_sc, k = k_year, bs = "cr") +
+  s(rain_sc, k = k_cov, bs = "cr") +
+  s(temp_sc, k = k_cov, bs = "cr") +
+  s(gdp_sc,  k = k_cov, bs = "cr") +
+  s(lpi_sc,  k = k_cov, bs = "cr") +
+  s(region_l1,   bs = "re") +
+  s(region_l2,   bs = "re") +
+  s(country_m49, bs = "re") +
+  s(food_group,  bs = "re") +
+  s(product,        bs = "re") +
+  s(basket_country, bs = "re") +
+  s(product_country,   bs = "re") +
+  s(year_sc, region_l1,      bs = "re") +
+  s(year_sc, region_l2,      bs = "re") +
+  s(year_sc, country_m49,    bs = "re") +
+  s(year_sc, food_group,     bs = "re") +
+  s(year_sc, product,           bs = "re") +
+  s(year_sc, basket_country, bs = "re") +
+  s(year_sc, product_country,   bs = "re")
+```
+
+### Interpretation of the model components
+
+The terms $s(\texttt{year\_sc})$, $s(\texttt{rain\_sc})$, $s(\texttt{temp\_sc})$, $s(\texttt{gdp\_sc})$, and $s(\texttt{lpi\_sc})$ allow the benchmark to learn nonlinear relationships between the transformed loss response and the continuous predictors. The basis type `bs = "cr"` corresponds to cubic regression splines.
+
+The terms with `bs = "re"` act as grouped random-effect-style components in `mgcv`. They allow the model to account for heterogeneity across level-1 regions, level-2 regions, countries, food groups, products, food-group-by-country combinations, and product-by-country combinations. The additional terms involving both `year_sc` and a grouping factor allow the year effect to vary across level-1 regions, level-2 regions, countries, food groups, products, food-group-by-country combinations, and product-by-country combinations. These terms are included to give the frequentist benchmark a grouped intercept-and-year structure that is more comparable in spirit to the hierarchical Bayesian model, while remaining a distinct frequentist specification.
+
+The categorical variables `stage`, `method`, and `source` enter as ordinary parametric factors. Their reference levels are kept the same as in the Bayesian workflow: `wholesupplychain` for stage, `Supply utilization accounts` for method, and `SWS` for source.
+
+### Selection of the spline basis dimensions
+
+The smooth terms depend on two basis-dimension parameters: `k_year`, which controls the maximum basis dimension for the year smooth, and `k_cov`, which controls the maximum basis dimension for the rainfall, temperature, GDP, and LPI smooths. These values were not fixed arbitrarily. Instead, they were selected empirically by searching over a grid of admissible combinations.
+
+Because the full Gaussian GAMM is computationally heavy, the basis-dimension search was carried out using a lighter auxiliary specification that retained the same smooth terms, the same fixed effects for stage, method, and source, and the main grouping random effects, while omitting the most computationally demanding interaction and varying-slope terms. Candidate models were compared using the `mgcv` basis-dimension diagnostic together with the fREML criterion. Under this selection rule, the final choice was
+
+$$
+k_{\text{year}} = 12, \qquad k_{\text{cov}} = 18,
+$$
+
+because this combination produced no flagged smooth terms in the diagnostic search and attained the lowest fREML score among the admissible candidates considered.
+
+### Handling of random effects in the Bayesian model and the Gaussian GAMM
+
+The Bayesian model and the Gaussian GAM use the same prediction support logic: predictions are produced only for valid country--product--year combinations supported by production data and by the availability of the required covariates. The main difference is therefore not which objects are predicted, but how random effects are handled when a country, product, or interaction level was not observed in the fitting sample.
+
+#### Bayesian model
+
+In the Bayesian model, country, product, and interaction effects are latent random variables. For levels observed in the training data, posterior samples of the corresponding effects are used directly. For levels not observed in the training sample, new random effects are simulated from their assumed Gaussian distributions within the prediction routine. As a consequence, predictions for unseen levels are not forced to coincide with the population mean. Instead, each posterior draw contains one simulated realization of the corresponding missing effect.
+
+For a new country, the Bayesian prediction therefore combines:
+
+1. the global and higher-level structure shared with observed countries, and
+2. a simulated country-specific deviation around zero.
+
+Accordingly, the Bayesian prediction intervals reflect both posterior uncertainty in the fitted parameters and the additional uncertainty induced by the new latent effects.
+
+#### Gaussian GAM fitted with random-effect smooths
+
+<!-- In the Gaussian benchmark, predictions are obtained from a model fitted with `mgcv::bam()`, where grouped random effects are represented through penalized smooth terms of the form `s(..., bs = "re")`. The model is still a generalized additive model, but these `bs = "re"` terms play the role of Gaussian random effects. -->
+
+When prediction data contain factor levels that were not present during fitting, `mgcv` sets the contribution of the corresponding random-effect term to zero. This applies not only to simple grouped intercept terms such as `s(country_m49, bs = "re")`, but also to varying year terms such as `s(year_sc, country_m49, bs = "re")`.
+
+Therefore, for a new country, the Gaussian GAM prediction is still informed by all components that are available for that row, including:
+
+- the intercept,
+- the parametric effects for stage, method, and source,
+- the smooth effects of year and the continuous covariates, and
+- any grouped terms whose levels were observed in the training sample.
+
+Only the missing country-specific contribution is replaced by zero. This does not mean that the whole prediction is zero. It means only that the country-specific deviation is replaced by its mean value under the Gaussian random-effects assumption.
+
+#### Additional uncertainty for unseen random-effect levels
+
+Because unseen random-effect levels contribute zero to the fitted mean, the implementation adds an explicit variance correction through the custom function `compute_missing_re_var(...)`. This function does not alter the point prediction. Instead, it increases the prediction uncertainty on the link scale for rows involving grouping levels that were not observed during fitting.
+
+For each prediction row, the function checks whether the relevant grouping variables are new, for example:
+
+- `new_region_l1`,
+- `new_region_l2`,
+- `new_country_m49`,
+- `new_food_group`,
+- `new_product`,
+- `new_basket_country`,
+- `new_product_country`.
+
+If a given grouped level is new, the function adds the estimated variance component for the corresponding grouped intercept term, and where applicable also the variance contribution of the corresponding grouped year-varying term. For example, if a country is new, the variance of the missing country intercept term is added, approximately
+
+$$
+\sigma^2_{\mathrm{country}}.
+$$
+
+For varying year terms, the additional variance depends on the value of the standardized year. If a country-specific year term is missing, the function adds
+
+$$
+\mathrm{year\_sc}_i^2 \sigma^2_{\mathrm{country\mbox{-}year}},
+$$
+
+which follows from the variance formula for a random coefficient of the form
+
+$$
+b_{\mathrm{country}} \, \mathrm{year\_sc}_i
+$$
+
+with
+
+$$
+b_{\mathrm{country}} \sim \mathcal{N}\!\left(0,\sigma^2_{\mathrm{country\mbox{-}year}}\right).
+$$
+
+The total prediction standard error on the link scale is then computed as the square root of the sum of:
+
+- the standard prediction variance returned by the fitted Gaussian GAM, and
+- the additional variance associated with unseen grouped terms.
+
+Hence, the Gaussian benchmark approximates the uncertainty associated with missing random effects, but it does so differently from the Bayesian model.
+
+#### Interpretation of the difference
+
+The practical difference between the two models can be summarized as follows.
+
+In the Bayesian model, unseen random effects are **sampled** from their Gaussian distributions during prediction. In the Gaussian GAM, unseen grouped effects are **not sampled**; their contribution to the point prediction is fixed at zero, while their uncertainty is accounted for approximately through an additional variance term.
+
+As a result, the two models can predict the same set of valid country--product--year objects, but they do not represent missing country- or product-specific heterogeneity in the same way. The Bayesian model provides a simulation-based treatment of new latent effects, whereas the Gaussian GAM uses a mean-zero plug-in prediction together with an uncertainty inflation step.
+
+For this reason, the Gaussian GAM should be regarded as a coherent frequentist comparator to the Bayesian workflow, but not as a fully equivalent replacement for the Bayesian hierarchical predictive mechanism.
+
+### Prediction and comparability with the Bayesian model
+
+Predictions from the Gaussian GAMM are produced over the same country--product--year support used in the Bayesian prediction workflow. The prediction grid is built from the same saved objects used by the Bayesian model, namely the product tree, country grouping table, harvest calendar, GDP, LPI, monthly weather covariates, and production-support table. Only valid country--product--year combinations are retained.
+
+For each valid combination, predictions are generated separately under the two method settings `Supply utilization accounts` and `Survey`, using the same covariate values and the same stored scaling constants. The resulting fitted values are obtained on the cloglog scale, transformed back to the original proportion scale, and accompanied by approximate prediction intervals derived from the fitted Gaussian model.
+
+This design makes the frequentist outputs directly comparable with the Bayesian prediction objects for both SUA-level and Survey-level food-loss estimates.
+
+<!-- ### Comparison with the Bayesian model -->
+
+<!-- To assess how closely the Gaussian GAMM benchmark reproduced the Bayesian predictions, I compared the Gaussian GAMM and Bayesian outputs on the common prediction support, that is, on the set of country--product--year combinations for which both models produced a non-missing prediction after matching on `iso3`, `measureditemcpc`, and `year`. -->
+
+<!-- For each matched country--product--year combination, I defined -->
+
+<!-- $$ -->
+<!-- \texttt{diff}_i = \widehat{p}^{\text{GAMM}}_i - \widehat{p}^{\text{Bayes}}_i, -->
+<!-- $$ -->
+
+<!-- $$ -->
+<!-- \texttt{abs\_diff}_i = \left| \widehat{p}^{\text{GAMM}}_i - \widehat{p}^{\text{Bayes}}_i \right|, -->
+<!-- $$ -->
+
+<!-- and -->
+
+<!-- $$ -->
+<!-- \texttt{abs\_rel\_diff}_i = -->
+<!-- \left| -->
+<!-- \frac{\widehat{p}^{\text{GAMM}}_i - \widehat{p}^{\text{Bayes}}_i} -->
+<!-- {\widehat{p}^{\text{Bayes}}_i} -->
+<!-- \right|. -->
+<!-- $$ -->
+
+<!-- Here, $\widehat{p}^{\text{GAMM}}_i$ denotes the Gaussian GAMM prediction and $\widehat{p}^{\text{Bayes}}_i$ denotes the corresponding Bayesian prediction. -->
+
+<!-- #### SUA-level comparison -->
+
+<!-- For the SUA-level predictions, the comparison was based on $598{,}302$ matched country--product--year combinations. The Gaussian GAMM and the Bayesian model were fairly close at this level in absolute terms. The mean signed difference was $0.00027$, indicating almost no systematic average overprediction or underprediction by the Gaussian GAMM relative to the Bayesian model. The mean absolute difference was $0.0120$, the median absolute difference was $0.00872$, and the root mean squared error was $0.0167$. -->
+
+<!-- In absolute terms, $55.0\%$ of the matched SUA predictions differed by no more than $0.01$, $81.1\%$ differed by no more than $0.02$, and $98.7\%$ differed by no more than $0.05$. In relative terms, $41.7\%$ of the matched SUA predictions differed by no more than $5\%$, $69.1\%$ differed by no more than $10\%$, and $92.8\%$ differed by no more than $20\%$. -->
+
+<!-- The distribution across absolute relative-difference bands for the SUA-level comparison was as follows: -->
+
+<!-- | Relative difference band | Count | Share | -->
+<!-- |---|---:|---:| -->
+<!-- | `<= 5%` | 249,220 | 41.7% | -->
+<!-- | `5% to 10%` | 164,378 | 27.5% | -->
+<!-- | `10% to 20%` | 141,735 | 23.7% | -->
+<!-- | `> 20%` | 42,969 | 7.2% | -->
+
+<!-- The distribution across absolute-difference bands for the SUA-level comparison was as follows: -->
+
+<!-- | Absolute difference band | Count | Share | -->
+<!-- |---|---:|---:| -->
+<!-- | `<= 0.01` | 329,115 | 55.0% | -->
+<!-- | `0.01 to 0.02` | 156,133 | 26.1% | -->
+<!-- | `0.02 to 0.05` | 105,523 | 17.6% | -->
+<!-- | `> 0.05` | 7,531 | 1.3% | -->
+
+<!-- Taken together, these results indicate that the Gaussian GAMM benchmark reproduced the Bayesian SUA-level predictions reasonably well for most matched country--product--year combinations, with only a small minority of cases showing large absolute discrepancies. -->
+
+<!-- To make the interpretation of these bands more concrete, Table \@ref(tab:sua-examples) reports four matched SUA-level examples. The first two rows show that the same absolute difference of `0.01` on the loss scale can correspond to different relative discrepancies depending on the baseline level of loss: for China in 2009 (`21429.02`, walnuts, shelled), the Bayesian and Gaussian GAMM predictions are `0.0875` and `0.0975`, so the absolute difference is `0.01`, which corresponds to an absolute relative difference of `11.4%`; by contrast, for China in 2004 (`23991.03`, homogenized cooked fruit preparation), the predictions are `0.204` and `0.194`, so the same absolute difference of `0.01` corresponds to only `4.9%`. The last two rows show the converse: an absolute relative difference of about `5%` does not necessarily imply the same absolute difference on the loss scale, because that depends on the baseline prediction. -->
+
+<!-- | Example | Country | ISO3 | Year | Measured item CPC | Crop | Bayesian prediction | Gaussian GAMM prediction | Signed difference | Absolute difference | Absolute relative difference | -->
+<!-- |---|---|---|---:|---|---|---:|---:|---:|---:|---:| -->
+<!-- | low loss, absolute difference about 0.01 | China | CHN | 2009 | 21429.02 | walnuts, shelled | 0.0875 | 0.0975 | 0.01 | 0.01 | 11.4% | -->
+<!-- | high loss, absolute difference about 0.01 | China | CHN | 2004 | 23991.03 | homogenized cooked fruit preparation | 0.204 | 0.194 | -0.01 | 0.01 | 4.9% | -->
+<!-- | low loss, absolute relative difference about 5% | China | CHN | 2011 | 01657 | ginger, raw | 0.0933 | 0.098 | 0.0047 | 0.0047 | 5% | -->
+<!-- | high loss, absolute relative difference about 5% | China | CHN | 2006 | 01342.01 | pears | 0.209 | 0.198 | -0.0104 | 0.0104 | 5% | -->
+
+<!-- : Illustrative SUA-level examples of absolute and relative differences between Bayesian and Gaussian GAMM predictions  -->
+
+
+<!-- #### Survey-level comparison -->
+
+<!-- For the Survey-level predictions, the comparison was also based on $598{,}302$ matched country--product--year combinations. In this case, the agreement between the two models was clearly weaker than for the SUA-level comparison. The mean signed difference was $0.0243$, indicating that the Gaussian GAMM tended on average to produce higher Survey-level predictions than the Bayesian model. The mean absolute difference was $0.0259$, the median absolute difference was $0.0212$, and the root mean squared error was $0.0329$. -->
+
+<!-- In relative terms, $16.9\%$ of the matched Survey predictions differed by no more than $5\%$, $35.1\%$ differed by no more than $10\%$, and $73.6\%$ differed by no more than $20\%$. In absolute terms, $22.2\%$ differed by no more than $0.01$, $47.2\%$ differed by no more than $0.02$, and $88.2\%$ differed by no more than $0.05$. -->
+
+<!-- The distribution across absolute relative-difference bands for the Survey-level comparison was as follows: -->
+
+<!-- | Relative difference band | Count | Share | -->
+<!-- |---|---:|---:| -->
+<!-- | `<= 5%` | 101,133 | 16.9% | -->
+<!-- | `5% to 10%` | 108,765 | 18.2% | -->
+<!-- | `10% to 20%` | 230,202 | 38.5% | -->
+<!-- | `> 20%` | 158,202 | 26.4% | -->
+
+<!-- The distribution across absolute-difference bands for the Survey-level comparison was as follows: -->
+
+<!-- | Absolute difference band | Count | Share | -->
+<!-- |---|---:|---:| -->
+<!-- | `<= 0.01` | 132,806 | 22.2% | -->
+<!-- | `0.01 to 0.02` | 149,650 | 25.0% | -->
+<!-- | `0.02 to 0.05` | 245,107 | 41.0% | -->
+<!-- | `> 0.05` | 70,739 | 11.8% | -->
+
+<!-- Overall, the comparison shows that the Gaussian GAMM benchmark remained substantially closer to the Bayesian model at the SUA level than at the Survey level. The Survey-level discrepancies are larger both in absolute and relative terms, which is consistent with the fact that the Survey predictions depend more strongly on how the two modelling frameworks represent method-related effects. -->
+
+# Comparison of FLP and FLI across alternative food loss estimation methods
+
+To compare the different food loss estimation approaches on a common basis, I computed the `Food Loss Percentage (FLP)` and the `Food Loss Index (FLI)` from the loss estimates produced by:
+
+1. the **baseline Bayesian model**,
+2. the **Bayesian model with alternative priors**, and
+3. the **frequentist Gaussian GAMM approach**.
+
+The comparison was carried out separately for the estimated food loss series corresponding to the SUA and Survey methods. The purpose of this exercise was to evaluate how the different modelling approaches translate into the final SDG-style indicators when they are processed through the same downstream index-construction framework.
+
+Since the loss estimates produced by the different models are not identical in how they are obtained, a direct comparison of raw loss ratios alone is not sufficient.
+
+To make the comparison interpretable, I used the same quantity base, the same price weights, the same commodity basket rule, and the same aggregation code for all methods. This ensures that the observed differences in FLP and FLI are driven by the estimated loss ratios themselves, rather than by differences in the downstream index construction.
+
+For this comparison exercise, the FLP and FLI were constructed using production only as the quantity base (the base quantities were derived from production data `5510`).
+
+<!-- This means that the base quantities were derived from production data (`5510`) only, without applying the legacy import-dependent adjustment that, in older scripts, replaced the quantity base by production plus imports for selected country-product pairs. -->
+
+This choice is important for interpretation:
+
+- the comparison is coherent across methods, because the same production-only base is used everywhere;
+- however, the resulting FLP and FLI values are comparison-oriented indicators, not necessarily exact reproductions of legacy official outputs generated under different quantity-base conventions.
+
+For each modelling approach, the loss input was a country-product-year loss ratio:
+
+- for the Bayesian baseline model and the Bayesian model with alternative priors, I used the saved posterior median loss ratios;
+- for the frequentist Gaussian GAMM approach, I used the corresponding fitted point estimates.
+
+## Calculation of FLP and FLI
+
+Let $l_{c,i,t}$ denote the estimated loss ratio for country \(c\), commodity \(i\), and year \(t\). For the comparison exercise, the base-period quantity was defined as:
+
+$$
+q_{c,i}^{0} = \frac{1}{3}\sum_{y=2014}^{2016} q_{c,i,y}
+$$
+
+where $q_{c,i,y}$ is the production quantity of commodity $i$ in country $c$ and year $y$. 
+<!-- Thus, in this comparison, the quantity base was derived from production only and not from a production-plus-imports aggregate. -->
+
+Let $p_i^{0}$ denote the international price of commodity $i$ in the reference year. The corresponding base-period value weight is then:
+
+$$
+p_i^{0} q_{c,i}^{0}.
+$$
+
+The commodity basket was defined using the GFLI basket classification. Commodities classified as `"Other"` were excluded. Within each country and GFLI food group, commodities were ranked by their base-period production value $p_i^{0} q_{c,i}^{0}$, and the selected basket was used consistently across all methods compared.
+
+For a given aggregation $g$ and year $t$, the `Food Loss Percentage (FLP)` was calculated as:
+
+$$
+FLP_{g,t} =
+\frac{
+\sum_{(c,i)\in B_g} l_{c,i,t}\, p_i^{0} q_{c,i}^{0}
+}{
+\sum_{(c,i)\in B_g} p_i^{0} q_{c,i}^{0}
+},
+$$
+
+where $B_g$ denotes the set of basket commodities included in aggregation $g$.
+
+The `Food Loss Index (FLI)` was then obtained by expressing the annual FLP relative to its reference-period level:
+
+$$
+FLI_{g,t} = 100 \times \frac{FLP_{g,t}}{FLP_{g,\mathrm{ref}}}.
+$$
+
+Accordingly, the comparison across estimation methods was based on the same FLP and FLI formulas, the same international price weights, the same basket construction rule, and the same production-only quantity base.
+
+## Interpretation of the comparison
+
+This procedure yields a comparison of the three modelling approaches under a shared index-construction framework. The resulting differences in FLP and FLI therefore reflect differences in the estimated loss ratios produced by the methods, while holding fixed:
+
+- the production-only quantity base,
+- the international price weights,
+- the commodity basket rule, and
+- the aggregation procedure.
+
+This makes the comparison suitable for methodological assessment. At the same time, because I deliberately used a production-only quantity base for all methods, these comparison results should be interpreted as **harmonized comparison indicators**, rather than as an attempt to exactly reproduce every legacy official series under its original conventions.
+
+## Distribution of FLP and FLI across methods
+Before comparing pairwise differences in the Food Loss Percentage (FLP) and the Food Loss Index (FLI), it is
+useful to look at the overall distribution of the FLP values produced by the three estimation approaches at the
+SUA level. This provides a first descriptive view of whether the methods generate broadly similar ranges and
+shapes of estimated food-loss percentages before focusing on observation-by-observation deviations.
+
+@fig-flp-density-sua1 and  @fig-flp-density-sua2 show kernel density estimates of the FLP distributions for the baseline Bayesian model, the Bayesian model with alternative priors, and the frequentist GAMM benchmark, separately for the four aggregation outputs considered in the comparison exercise: world-to-countries, food groups, SDG regions, and SDG-region-by-food-group.
+
+::: {#fig-flp-density-sua1 layout-ncol=2}
+
+![World-to-countries](./images/density_FLP_world_to_countries_SUA.png){#fig-flp-density-sua-world width="100%"}
+
+![Food groups](./images/density_FLP_food_groups_SUA.png){#fig-flp-density-sua-food-groups width="100%"}
+
+Kernel density estimates of FLP values at the SUA level for the baseline Bayesian model, the Bayesian model with alternative priors, and the frequentist GAMM benchmark.
+
+:::
+
+::: {#fig-flp-density-sua2 layout-ncol=2}
+
+![SDG regions](./images/density_FLP_sdg_regions_SUA.png){#fig-flp-density-sua-sdg width="100%"}
+
+![SDG regions and food groups](./images/density_FLP_sdg_regions_and_food_groups_SUA.png){#fig-flp-density-sua-sdg-regions-and-food-groups width="100%"}
+
+Kernel density estimates of FLP values at the SUA level for the baseline Bayesian model, the Bayesian model with alternative priors, and the frequentist GAMM benchmark.
+
+:::
+
+
+## Grafical comparison of FLP estimates
+
+@fig-food_groups_sua_survey, @fig-sdg_regions_sua_survey, @fig-sdg_regions_by_food_sua_survey and @fig-world_flp_sua_survey provide a graphical comparison of the FLP estimates obtained under the three model specifications. The purpose is to compare the estimated FLP levels directly across methods and aggregation levels. The figures are reported for food groups, SDG regions, SDG region by food group combinations, and the world aggregate over time, separately for the SUA and Survey settings. For the graphical FLP comparison, the focus is restricted to the year 2023. This choice was made because the QA outputs for 2024 showed incomplete coverage for some country--product combinations. Since the FLP aggregation is computed from the observations available in a given year, missing high-weight or high-loss combinations could distort the resulting aggregates and reduce comparability across methods and aggregation levels.
+
+At the food-group level, the baseline Bayesian model and the Bayesian model with alternative priors are almost indistinguishable in both the SUA and Survey outputs. In both settings,*Fruits \& Vegetables* show the highest FLP, while *Cereals \& Pulses* show the lowest. The frequentist GAMM is more distinct. In the SUA results it is lower than the Bayesian estimates for *Fruits \& Vegetables* and *Meat \& Animals Products*, while it is slightly higher for *Cereals \& Pulses* and *Roots, Tubers \& Oil-Bearing Crops*. In the Survey results, the frequentist GAMM is above both Bayesian specifications for all four food groups, with the largest visible differences for *Fruits \& Vegetables*, *Roots, Tubers \& Oil-Bearing Crops*, and *Cereals \& Pulses*.
+
+A similar picture emerges at the SDG-region level. Again, the two Bayesian specifications remain very close across all regions, both for SUA and for Survey. The frequentist GAMM differs more substantially. In the SUA results, it is below the Bayesian estimates in some regions and above them in others, so the differences do not move in a single direction. In the Survey results, however, it is consistently above both Bayesian models in all reported SDG regions. The highest FLP values are observed for *Sub-Saharan Africa*, while the lowest values are observed for *Northern America and Europe* and *Australia and New Zealand*.
+
+The SDG-region-by-food-group figures provide a finer level of detail. Also in these plots, the baseline Bayesian and the Bayesian alternative-prior specifications remain nearly superposed in almost all region--food group combinations. The frequentist GAMM shows a more variable behaviour. In the SUA setting, it may be either above or below the Bayesian values depending on the specific combination considered. In the Survey setting, it is more often above the Bayesian values, especially for *Fruits \& Vegetables* and *Roots, Tubers \& Oil-Bearing Crops*, although the magnitude of the gap still depends on the region.
+
+Finally, the world time-series plots confirm the same general pattern over the whole considered period. The two Bayesian specifications remain extremely close and evolve smoothly over time in both the SUA and Survey series. By contrast, the frequentist GAMM shows a visibly different trajectory. In the SUA series it oscillates more strongly around the Bayesian curves, while in the Survey series it remains clearly above them throughout the entire period shown. These world-level plots therefore reinforce the main descriptive conclusion of the graphical comparison: the alternative-prior Bayesian specification remains very close to the baseline Bayesian model, whereas the frequentist GAMM produces the most visibly different FLP patterns, especially in the Survey setting.
+
+::: {#fig-food_groups_sua_survey layout-ncol=2}
+
+![Food groups sua](./images/food_groups_FLP_SUA.png){#fig-food-groups-flp-sua width="100%"}
+
+![Food groups survey](./images/food_groups_FLP_Survey.png){#fig-food-groups-flp-survey width="100%"}
+
+FLP by food group under the three model specifications.
+
+:::
+
+
+::: {#fig-sdg_regions_sua_survey layout-ncol=2}
+
+![SDG regions sua](./images/sdg_regions_FLP_SUA.png){#fig-sdg-regions-sua width="100%"}
+
+![SDG regions survey](./images/sdg_regions_FLP_Survey.png){#fig-sdg-regions-survey width="100%"}
+
+FLP by SDG region under the three model specifications.
+
+:::
+
+
+::: {#fig-sdg_regions_by_food_sua_survey layout-ncol=2}
+
+![SDG regions by food sua](./images/sdg_by_food_FLP_SUA.png){#fig-sdg-by-food-sua width="100%"}
+
+![SDG regions by food survey](./images/sdg_by_food_FLP_Survey.png){#fig-sdg-by-food-survey width="100%"}
+
+FLP by SDG region and food group under the three model specifications.
+
+:::
+
+
+::: {#fig-world_flp_sua_survey layout-ncol=2}
+
+![World FLP sua](./images/world_timeseries_FLP_SUA.png){#fig-world-time-sua width="100%"}
+
+![World FLP survey](./images/world_timeseries_FLP_Survey.png){#fig-world-time-survey width="100%"}
+
+World FLP over time under the three model specifications.
+
+:::
+
+## Main insights
+
+The comparison exercises show that the baseline Bayesian model and the Bayesian model with alternative priors produce very similar FLP and FLI outputs across all aggregation schemes considered here. The frequentist GAMM benchmark also yields series that are broadly comparable in structure, although the magnitude and spread of the deviations from the baseline Bayesian outputs are generally larger than in the alternative-prior Bayesian comparison. This pattern is visible both in the summary measures and in the graphical analyses of the distribution of deviations.
+
+These results should be interpreted descriptively. The purpose of the present comparison is not to rank the methods as better or worse, but rather to document how the different modelling choices translate into differences in the final indicator outputs under a harmonized FLP/FLI calculation framework. In this sense, the analysis helps clarify which comparisons are negligible, which are more substantial, and at which aggregation levels the resulting series remain closest or become more distinct.
+
+Taken together, the results provide a structured basis for understanding the relationship between the three modelling approaches and for interpreting the extent to which differences at the model-estimate level carry through to the derived FLP and FLI indicators.
+
