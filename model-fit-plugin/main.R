@@ -506,9 +506,9 @@ if(as.numeric(substr(flwdb_name, 1, 4)) < 2024){
 ExternalDataOpt <- DataCollectionTags_represent
 
 # Order in the target dataset
-cols_order <- c("geographicAreaM49", "measuredElementSuaFbs",
-                "measuredItemSuaFbs", "timePointYears", "Value",
-                "flagObservationStatus", "flagMethod")
+#cols_order <- c("geographicAreaM49", "measuredElementSuaFbs",
+#               "measuredItemSuaFbs", "timePointYears", "Value",
+#               "flagObservationStatus", "flagMethod")
 
 # Overall Lower and Upper bounds
 LB <- 0.02
